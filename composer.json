@@ -1,0 +1,32 @@
+{
+    "name": "iseekup/oauth-connect",
+    "description": "OAuth2 provider for Flarum forums.",
+    "type": "flarum-extension",
+    "license": "MIT",
+    "homepage": "https://github.com/gungun88/oauth-connect",
+    "support": {
+        "issues": "https://github.com/gungun88/oauth-connect/issues",
+        "source": "https://github.com/gungun88/oauth-connect"
+    },
+    "require": {
+        "flarum/core": "^1.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "ISeekUp\\OAuthConnect\\": "src/"
+        }
+    },
+    "extra": {
+        "flarum-extension": {
+            "title": "OAuth Connect",
+            "category": "feature",
+            "icon": {
+                "name": "fas fa-key",
+                "backgroundColor": "#2563eb",
+                "color": "#ffffff"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

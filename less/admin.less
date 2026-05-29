@@ -1,0 +1,136 @@
+.OAuthConnectPage {
+  .OAuthConnectPanel {
+    margin: 0 0 24px;
+    padding: 0 0 24px;
+    border-bottom: 1px solid var(--control-bg);
+  }
+
+  .OAuthConnectPanel h3 {
+    margin: 0 0 14px;
+  }
+
+  .OAuthConnectEndpoints {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .OAuthConnectEndpoints label,
+  .OAuthConnectForm label {
+    display: block;
+  }
+
+  .OAuthConnectEndpoints span,
+  .OAuthConnectForm label > span,
+  .OAuthConnectScopes > span {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .OAuthConnectSecret {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 14px;
+    border: 1px solid #f5c26b;
+    border-radius: 6px;
+    background: #fff8ea;
+  }
+
+  .OAuthConnectFormGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .OAuthConnectForm textarea {
+    resize: vertical;
+  }
+
+  .OAuthConnectScopes {
+    margin-top: 12px;
+  }
+
+  .OAuthConnectScopes .checkbox {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    margin: 0 16px 8px 0;
+    font-weight: 400;
+  }
+
+  .OAuthConnectFormActions,
+  .OAuthConnectActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .OAuthConnectTable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .OAuthConnectTable th,
+  .OAuthConnectTable td {
+    padding: 10px 8px;
+    border-top: 1px solid var(--control-bg);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .OAuthConnectClientId {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted-color);
+    word-break: break-all;
+  }
+
+  .OAuthConnectUri {
+    max-width: 360px;
+    overflow-wrap: anywhere;
+  }
+
+  .OAuthConnectScope {
+    display: inline-block;
+    margin: 0 5px 5px 0;
+  }
+
+  .OAuthConnectStatus--enabled {
+    color: #16723c;
+    font-weight: 600;
+  }
+
+  .OAuthConnectStatus--disabled {
+    color: #a12a2a;
+    font-weight: 600;
+  }
+
+  .OAuthConnectActions {
+    margin-top: 0;
+  }
+
+  .OAuthConnectEditRow td {
+    background: var(--body-bg);
+  }
+}
+
+@media (max-width: 760px) {
+  .OAuthConnectPage {
+    .OAuthConnectEndpoints,
+    .OAuthConnectFormGrid,
+    .OAuthConnectSecret {
+      grid-template-columns: 1fr;
+    }
+
+    .OAuthConnectTable {
+      display: block;
+      overflow-x: auto;
+    }
+  }
+}

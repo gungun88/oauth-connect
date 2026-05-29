@@ -1,0 +1,8 @@
+/vendor/
+/node_modules/
+/js/node_modules/
+/.phpunit.result.cache
+/.php-cs-fixer.cache
+.DS_Store
+Thumbs.db
+
