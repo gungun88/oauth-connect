@@ -1,6 +1,10 @@
 (function () {
   'use strict';
 
+  if (typeof module !== 'undefined') {
+    module.exports = module.exports || {};
+  }
+
   function getDefault(module) {
     return module && module.default ? module.default : module;
   }
