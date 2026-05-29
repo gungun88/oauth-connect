@@ -95,6 +95,28 @@ php flarum cache:clear
 php flarum assets:publish
 ```
 
+## Troubleshooting
+
+If Composer fails before installing this extension with an error like this:
+
+```text
+The "https://flarum.org/composer/packages.json" file could not be downloaded (HTTP/2 404)
+```
+
+the Flarum installation has an obsolete Composer repository configured. Remove the `https://flarum.org/composer` repository from the forum's root `composer.json`, then run the install command again.
+
+For Docker Compose deployments, this command removes only that obsolete repository entry:
+
+```sh
+docker compose run --rm flarum php -r '$f="composer.json"; $j=json_decode(file_get_contents($f), true); $j["repositories"]=array_values(array_filter($j["repositories"] ?? [], function ($r) { return !is_array($r) || ($r["url"] ?? "") !== "https://flarum.org/composer"; })); file_put_contents($f, json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL);'
+```
+
+Then retry:
+
+```sh
+docker compose run --rm flarum composer require iseekup/oauth-connect:^0.1
+```
+
 ## Development installation
 
 For local development, add this repository as a path repository in a Flarum installation and require the same package name:
