@@ -53,29 +53,74 @@ After enabling the extension, open the Flarum admin panel and go to the OAuth Co
 
 Client secrets are stored with `password_hash()` and only shown once when created or reset.
 
-## Installation in this repository
+## Installation
 
-The package is installed as a Composer path repository:
+Install from Packagist after this package has been submitted:
+
+```sh
+composer require iseekup/oauth-connect:^0.1
+php flarum extension:enable iseekup-oauth-connect
+php flarum migrate
+php flarum cache:clear
+php flarum assets:publish
+```
+
+If you install before the package is available on Packagist, add the GitHub repository first:
+
+```sh
+composer config repositories.gungun88-oauth-connect vcs https://github.com/gungun88/oauth-connect.git
+composer require iseekup/oauth-connect:^0.1
+php flarum extension:enable iseekup-oauth-connect
+php flarum migrate
+php flarum cache:clear
+php flarum assets:publish
+```
+
+For Docker Compose deployments, run the same commands inside the Flarum service:
+
+```sh
+docker compose run --rm flarum composer require iseekup/oauth-connect:^0.1
+docker compose run --rm flarum php flarum extension:enable iseekup-oauth-connect
+docker compose run --rm flarum php flarum migrate
+docker compose run --rm flarum php flarum cache:clear
+docker compose run --rm flarum php flarum assets:publish
+```
+
+Update an existing installation:
 
 ```sh
 composer update iseekup/oauth-connect --with-dependencies
-php flarum extension:enable iseekup-oauth-connect
 php flarum migrate
 php flarum cache:clear
+php flarum assets:publish
 ```
 
-## Installation in another Flarum forum
+## Development installation
 
-Publish this directory as a normal Composer package named `iseekup/oauth-connect`, then install it in the target forum:
+For local development, add this repository as a path repository in a Flarum installation and require the same package name:
+
+```json
+{
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/iseekup/oauth-connect",
+            "options": {
+                "symlink": true
+            }
+        }
+    ]
+}
+```
+
+Then run:
 
 ```sh
-composer require iseekup/oauth-connect
+composer require iseekup/oauth-connect:*@dev
 php flarum extension:enable iseekup-oauth-connect
 php flarum migrate
 php flarum cache:clear
 ```
-
-For private distribution before publishing, add a Composer VCS or path repository in the target forum's `composer.json`, then require the package with the same name.
 
 ## Security notes
 
@@ -85,4 +130,3 @@ For private distribution before publishing, add a Composer VCS or path repositor
 - Access tokens expire after 2 hours by default.
 - Refresh tokens expire after 30 days by default and rotate on use.
 - Bearer token authentication is only applied to `/api/oauth/user` and `/api/user`.
-
