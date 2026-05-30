@@ -16,10 +16,52 @@ class ListAuthorizationsController implements RequestHandlerInterface
     {
         RequestUtil::getActor($request)->assertAdmin();
 
-        $authorizations = ClientAuthorization::query()
-            ->with(['user', 'client'])
+        $params = $request->getQueryParams();
+        $pageParam = $params['page_number'] ?? ($params['number'] ?? null);
+
+        if ($pageParam === null && isset($params['page']) && is_scalar($params['page'])) {
+            $pageParam = $params['page'];
+        }
+
+        $page = max(1, (int) ($pageParam ?? 1));
+        $limit = min(100, max(1, (int) ($params['limit'] ?? 20)));
+        $offset = ($page - 1) * $limit;
+
+        $query = ClientAuthorization::query()
+            ->with(['user', 'client']);
+
+        $clientId = trim((string) ($params['client_id'] ?? ''));
+        if ($clientId !== '') {
+            $query->where('client_id', $clientId);
+        }
+
+        $status = trim((string) ($params['status'] ?? ''));
+        if ($status === 'active') {
+            $query->whereNull('revoked_at');
+        } elseif ($status === 'revoked') {
+            $query->whereNotNull('revoked_at');
+        }
+
+        $search = trim((string) ($params['q'] ?? ''));
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
+                if (ctype_digit($search)) {
+                    $query->orWhere('user_id', (int) $search);
+                }
+
+                $query->orWhereHas('user', function ($query) use ($search) {
+                    $query->where('username', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%');
+                });
+            });
+        }
+
+        $total = (clone $query)->count();
+
+        $authorizations = $query
             ->orderBy('authorized_at', 'desc')
-            ->limit(200)
+            ->offset($offset)
+            ->limit($limit)
             ->get()
             ->map(function (ClientAuthorization $authorization) {
                 return [
@@ -36,7 +78,17 @@ class ListAuthorizationsController implements RequestHandlerInterface
             ->values()
             ->all();
 
-        return new JsonResponse(['data' => $authorizations]);
+        return new JsonResponse([
+            'data' => $authorizations,
+            'meta' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $total,
+                'total_pages' => (int) max(1, ceil($total / $limit)),
+                'has_prev' => $page > 1,
+                'has_next' => $offset + $limit < $total,
+            ],
+        ]);
     }
 
     private function date($value): ?string

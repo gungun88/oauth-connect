@@ -14,6 +14,8 @@
   var appModule = compat['admin/app'] || (typeof window !== 'undefined' ? window.app : null);
   var app = getDefault(appModule);
   var LoadingIndicator = getDefault(compat['common/components/LoadingIndicator'] || compat['components/LoadingIndicator']);
+  var setRouteWithForcedRefresh = getDefault(compat['common/utils/setRouteWithForcedRefresh'] || compat['utils/setRouteWithForcedRefresh']);
+  var EXTENSION_ID = 'iseekup-oauth-connect';
 
   if (!app || !app.initializers || !app.extensionData) {
     if (typeof console !== 'undefined' && console.error) {
@@ -40,7 +42,13 @@
       if (translated !== id) return translated;
     }
 
-    return fallback || id;
+    return fallback ? interpolate(fallback, params || {}) : id;
+  }
+
+  function interpolate(text, params) {
+    return String(text).replace(/\{([^}]+)\}/g, function (match, key) {
+      return Object.prototype.hasOwnProperty.call(params, key) ? params[key] : match;
+    });
   }
 
   function scopeLabel(scope) {
@@ -59,6 +67,73 @@
 
   function api(path) {
     return forumAttribute('apiUrl').replace(/\/$/, '') + '/oauth-connect' + path;
+  }
+
+  function queryString(params) {
+    var parts = [];
+
+    Object.keys(params || {}).forEach(function (key) {
+      var value = params[key];
+
+      if (value === undefined || value === null || value === '') return;
+
+      parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+    });
+
+    return parts.length ? '?' + parts.join('&') : '';
+  }
+
+  function authorizationsApi(params) {
+    var apiParams = Object.assign({}, params || {});
+
+    if (apiParams.page !== undefined && apiParams.page !== null && apiParams.page !== '') {
+      apiParams.page_number = apiParams.page;
+      delete apiParams.page;
+    }
+
+    return api('/authorizations') + queryString(apiParams);
+  }
+
+  function authorizationsRoute(params) {
+    var routeParams = {};
+
+    Object.keys(params || {}).forEach(function (key) {
+      var value = params[key];
+
+      if (value !== undefined && value !== null && value !== '') {
+        routeParams[key] = value;
+      }
+    });
+
+    return app.route('oauthConnectAuthorizations', routeParams);
+  }
+
+  function setRoute(route) {
+    if (typeof setRouteWithForcedRefresh === 'function') {
+      setRouteWithForcedRefresh(route);
+    } else {
+      m.route.set(route);
+    }
+  }
+
+  function extensionRoute(params) {
+    var routeParams = { id: EXTENSION_ID };
+
+    Object.keys(params || {}).forEach(function (key) {
+      var value = params[key];
+
+      if (value !== undefined && value !== null && value !== '') {
+        routeParams[key] = value;
+      }
+    });
+
+    return app.route('extension', routeParams);
+  }
+
+  function intParam(name, fallback) {
+    var value = parseInt(m.route.param(name), 10);
+
+    return isNaN(value) || value < 1 ? fallback : value;
   }
 
   function freshForm() {
@@ -149,6 +224,50 @@
     });
   }
 
+  function authorizationUser(authorization) {
+    return [
+      authorization.display_name || authorization.username || t('user_fallback', { id: authorization.user_id }, 'User #' + authorization.user_id),
+      authorization.username ? m('code.OAuthConnectClientId', authorization.username) : null,
+    ];
+  }
+
+  function authorizationStatus(authorization) {
+    return authorization.revoked_at
+      ? t('status.revoked', { date: displayDate(authorization.revoked_at) }, 'Revoked ' + displayDate(authorization.revoked_at))
+      : t('status.active', {}, 'Active');
+  }
+
+  function authorizationTable(authorizations, onRevoke) {
+    return m('table.OAuthConnectTable', [
+      m('thead', m('tr', [
+        m('th', t('table.client', {}, 'Client')),
+        m('th', t('table.user', {}, 'User')),
+        m('th', t('table.scopes', {}, 'Scopes')),
+        m('th', t('table.authorized', {}, 'Authorized')),
+        m('th', t('table.status', {}, 'Status')),
+        m('th', t('table.actions', {}, 'Actions')),
+      ])),
+      m('tbody', authorizations.map(function (authorization) {
+        return m('tr', [
+          m('td', [
+            authorization.client_name || authorization.client_id,
+            m('code.OAuthConnectClientId', authorization.client_id),
+          ]),
+          m('td', authorizationUser(authorization)),
+          m('td', scopeBadges(authorization.scopes)),
+          m('td', displayDate(authorization.authorized_at)),
+          m('td', authorizationStatus(authorization)),
+          m('td', !authorization.revoked_at ? m('button.Button.Button--danger', {
+            type: 'button',
+            onclick: function () {
+              onRevoke(authorization);
+            },
+          }, t('actions.revoke', {}, 'Revoke')) : null),
+        ]);
+      })),
+    ]);
+  }
+
   function localizeExtensionMetadata() {
     var extension = app.data && app.data.extensions ? app.data.extensions['iseekup-oauth-connect'] : null;
 
@@ -184,18 +303,30 @@
     self.loading = true;
     self.error = null;
 
-    return Promise.all([
-      app.request({ method: 'GET', url: api('/clients') }),
-      app.request({ method: 'GET', url: api('/authorizations') }),
-    ]).then(function (responses) {
-      self.clients = responses[0].data || [];
-      self.authorizations = responses[1].data || [];
+    var clientsRequest = app.request({
+      method: 'GET',
+      url: api('/clients'),
+    }).then(function (response) {
+      self.clients = response.data || [];
     }, function (error) {
       self.error = errorMessage(error);
     }).then(function () {
       self.loading = false;
       redraw();
     });
+
+    app.request({
+      method: 'GET',
+      url: authorizationsApi({ limit: 20 }),
+    }).then(function (response) {
+      self.authorizations = response.data || [];
+    }, function (error) {
+      self.error = errorMessage(error);
+    }).then(function () {
+      redraw();
+    });
+
+    return clientsRequest;
   };
 
   OAuthConnectSettings.prototype.view = function () {
@@ -570,37 +701,18 @@
     if (self.loading) return null;
 
     return m('.OAuthConnectPanel', [
-      m('h3', t('authorizations_title', {}, 'Recent authorizations')),
+      m('.OAuthConnectPanelHeader', [
+        m('h3', t('authorizations_title', {}, 'Recent authorizations')),
+        m('a.Button', {
+          href: authorizationsRoute(),
+          oncreate: m.route.link,
+        }, t('actions.view_all_authorizations', {}, 'View all authorizations')),
+      ]),
       self.authorizations.length === 0
         ? m('p.helpText', t('no_authorizations', {}, 'No users have authorized clients yet.'))
-        : m('table.OAuthConnectTable', [
-          m('thead', m('tr', [
-            m('th', t('table.client', {}, 'Client')),
-            m('th', t('table.user', {}, 'User')),
-            m('th', t('table.scopes', {}, 'Scopes')),
-            m('th', t('table.authorized', {}, 'Authorized')),
-            m('th', t('table.status', {}, 'Status')),
-            m('th', t('table.actions', {}, 'Actions')),
-          ])),
-          m('tbody', self.authorizations.map(function (authorization) {
-            return m('tr', [
-              m('td', authorization.client_name || authorization.client_id),
-              m('td', [
-                authorization.display_name || authorization.username || t('user_fallback', { id: authorization.user_id }, 'User #' + authorization.user_id),
-                authorization.username ? m('code.OAuthConnectClientId', authorization.username) : null,
-              ]),
-              m('td', scopeBadges(authorization.scopes)),
-              m('td', displayDate(authorization.authorized_at)),
-              m('td', authorization.revoked_at ? t('status.revoked', { date: displayDate(authorization.revoked_at) }, 'Revoked ' + displayDate(authorization.revoked_at)) : t('status.active', {}, 'Active')),
-              m('td', !authorization.revoked_at ? m('button.Button.Button--danger', {
-                type: 'button',
-                onclick: function () {
-                  self.revokeAuthorization(authorization);
-                },
-              }, t('actions.revoke', {}, 'Revoke')) : null),
-            ]);
-          })),
-        ]),
+        : authorizationTable(self.authorizations, function (authorization) {
+          self.revokeAuthorization(authorization);
+        }),
     ]);
   };
 
@@ -624,9 +736,291 @@
     });
   };
 
+  function OAuthConnectAuthorizationsPage() {}
+
+  OAuthConnectAuthorizationsPage.prototype.oninit = function () {
+    this.loading = true;
+    this.loadingAuthorizations = true;
+    this.clients = [];
+    this.authorizations = [];
+    this.meta = {
+      page: 1,
+      limit: 20,
+      total: 0,
+      total_pages: 1,
+      has_prev: false,
+      has_next: false,
+    };
+    this.error = null;
+    this.filters = this.filtersFromRoute();
+
+    if (app.setTitle) {
+      app.setTitle(t('authorizations_page_title', {}, 'Authorization records'));
+    }
+
+    this.loadClients();
+    this.loadAuthorizations();
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.filtersFromRoute = function () {
+    return {
+      page: intParam('page', 1),
+      limit: intParam('limit', 20),
+      client_id: m.route.param('client_id') || '',
+      status: m.route.param('status') || '',
+      q: m.route.param('q') || '',
+    };
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.loadClients = function () {
+    var self = this;
+
+    return app.request({
+      method: 'GET',
+      url: api('/clients'),
+    }).then(function (response) {
+      self.clients = response.data || [];
+      redraw();
+    }, function (error) {
+      self.error = errorMessage(error);
+      redraw();
+    });
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.loadAuthorizations = function () {
+    var self = this;
+
+    self.loadingAuthorizations = true;
+    self.error = null;
+
+    return app.request({
+      method: 'GET',
+      url: authorizationsApi(self.filters),
+    }).then(function (response) {
+      self.authorizations = response.data || [];
+      self.meta = response.meta || self.meta;
+    }, function (error) {
+      self.error = errorMessage(error);
+    }).then(function () {
+      self.loading = false;
+      self.loadingAuthorizations = false;
+      redraw();
+    });
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.view = function () {
+    var self = this;
+
+    return m('.OAuthConnectPage.OAuthConnectAuthorizationPage', [
+      m('.container', [
+        m('.OAuthConnectPageTitle', [
+          m('div', [
+            m('h2', t('authorizations_page_title', {}, 'Authorization records')),
+            m('p.helpText', t('authorizations_page_description', {}, 'Review, filter, and revoke OAuth2 user authorizations.')),
+          ]),
+          m('a.Button', {
+            href: extensionRoute(),
+            oncreate: m.route.link,
+          }, t('actions.back_to_settings', {}, 'Back to settings')),
+        ]),
+        self.error ? m('.Alert.Alert--error', self.error) : null,
+        self.filtersPanel(),
+        self.recordsPanel(),
+      ]),
+    ]);
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.filtersPanel = function () {
+    var self = this;
+
+    return m('.OAuthConnectPanel', [
+      m('h3', t('filters.title', {}, 'Filters')),
+      m('form.OAuthConnectFilters', {
+        onsubmit: function (event) {
+          event.preventDefault();
+          self.goToPage(1);
+        },
+      }, [
+        m('label', [
+          m('span', t('filters.client', {}, 'Client')),
+          m('select.FormControl', {
+            value: self.filters.client_id,
+            onchange: function (event) {
+              self.filters.client_id = event.currentTarget.value;
+              self.goToPage(1);
+            },
+          }, [
+            m('option', { value: '' }, t('filters.all_clients', {}, 'All clients')),
+            self.clients.map(function (client) {
+              return m('option', { value: client.client_id }, client.name || client.client_id);
+            }),
+          ]),
+        ]),
+        m('label', [
+          m('span', t('filters.status', {}, 'Status')),
+          m('select.FormControl', {
+            value: self.filters.status,
+            onchange: function (event) {
+              self.filters.status = event.currentTarget.value;
+              self.goToPage(1);
+            },
+          }, [
+            m('option', { value: '' }, t('filters.all_statuses', {}, 'All statuses')),
+            m('option', { value: 'active' }, t('status.active', {}, 'Active')),
+            m('option', { value: 'revoked' }, t('filters.revoked_only', {}, 'Revoked')),
+          ]),
+        ]),
+        m('label', [
+          m('span', t('filters.search', {}, 'Search user')),
+          m('input.FormControl', {
+            type: 'search',
+            value: self.filters.q,
+            placeholder: t('filters.search_placeholder', {}, 'Username, email, or user ID'),
+            oninput: function (event) {
+              self.filters.q = event.currentTarget.value;
+            },
+          }),
+        ]),
+        m('label', [
+          m('span', t('filters.per_page', {}, 'Per page')),
+          m('select.FormControl', {
+            value: String(self.filters.limit),
+            onchange: function (event) {
+              self.filters.limit = parseInt(event.currentTarget.value, 10) || 20;
+              self.goToPage(1);
+            },
+          }, [
+            m('option', { value: '20' }, '20'),
+            m('option', { value: '50' }, '50'),
+            m('option', { value: '100' }, '100'),
+          ]),
+        ]),
+        m('.OAuthConnectFilterActions', [
+          m('button.Button.Button--primary', { type: 'submit' }, t('actions.apply_filters', {}, 'Apply filters')),
+          m('button.Button', {
+            type: 'button',
+            onclick: function () {
+              self.resetFilters();
+            },
+          }, t('actions.reset_filters', {}, 'Reset')),
+          m('button.Button', {
+            type: 'button',
+            onclick: function () {
+              self.loadAuthorizations();
+            },
+          }, t('actions.refresh', {}, 'Refresh')),
+        ]),
+      ]),
+    ]);
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.recordsPanel = function () {
+    var self = this;
+    var summary = t('pagination.summary', {
+      total: self.meta.total || 0,
+      page: self.meta.page || 1,
+      pages: self.meta.total_pages || 1,
+    }, 'Total {total}, page {page} of {pages}');
+
+    return m('.OAuthConnectPanel', [
+      m('.OAuthConnectPanelHeader', [
+        m('h3', t('authorizations_all_title', {}, 'All authorization records')),
+        m('span.helpText', summary),
+      ]),
+      self.loadingAuthorizations
+        ? m('.OAuthConnectLoading', LoadingIndicator ? m(LoadingIndicator) : t('loading', {}, 'Loading...'))
+        : self.authorizations.length === 0
+          ? m('p.helpText', t('no_authorizations_filtered', {}, 'No authorization records match the current filters.'))
+          : authorizationTable(self.authorizations, function (authorization) {
+            self.revokeAuthorization(authorization);
+          }),
+      self.pagination(),
+    ]);
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.pagination = function () {
+    var self = this;
+
+    return m('.OAuthConnectPagination', [
+      m('button.Button', {
+        type: 'button',
+        disabled: !self.meta.has_prev || self.loadingAuthorizations,
+        onclick: function () {
+          self.goToPage(1);
+        },
+      }, t('pagination.first', {}, 'First')),
+      m('button.Button', {
+        type: 'button',
+        disabled: !self.meta.has_prev || self.loadingAuthorizations,
+        onclick: function () {
+          self.goToPage((self.meta.page || 1) - 1);
+        },
+      }, t('pagination.prev', {}, 'Previous')),
+      m('span.OAuthConnectPageCounter', t('pagination.page_counter', {
+        page: self.meta.page || 1,
+        pages: self.meta.total_pages || 1,
+      }, 'Page {page} / {pages}')),
+      m('button.Button', {
+        type: 'button',
+        disabled: !self.meta.has_next || self.loadingAuthorizations,
+        onclick: function () {
+          self.goToPage((self.meta.page || 1) + 1);
+        },
+      }, t('pagination.next', {}, 'Next')),
+      m('button.Button', {
+        type: 'button',
+        disabled: !self.meta.has_next || self.loadingAuthorizations,
+        onclick: function () {
+          self.goToPage(self.meta.total_pages || 1);
+        },
+      }, t('pagination.last', {}, 'Last')),
+    ]);
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.goToPage = function (page) {
+    this.filters.page = Math.max(1, page);
+    setRoute(authorizationsRoute(this.filters));
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.resetFilters = function () {
+    this.filters = {
+      page: 1,
+      limit: 20,
+      client_id: '',
+      status: '',
+      q: '',
+    };
+    setRoute(authorizationsRoute(this.filters));
+  };
+
+  OAuthConnectAuthorizationsPage.prototype.revokeAuthorization = function (authorization) {
+    var self = this;
+
+    if (!confirm(t('confirm.revoke_authorization', {}, 'Revoke this user authorization and its tokens?'))) return;
+
+    app.request({
+      method: 'POST',
+      url: api('/authorizations/revoke'),
+      body: {
+        client_id: authorization.client_id,
+        user_id: authorization.user_id,
+      },
+    }).then(function () {
+      return self.loadAuthorizations();
+    }, function (error) {
+      self.error = errorMessage(error);
+      redraw();
+    });
+  };
+
   app.initializers.add('iseekup/oauth-connect', function () {
     try {
       localizeExtensionMetadata();
+
+      app.routes.oauthConnectAuthorizations = {
+        path: '/oauth-connect/authorizations',
+        component: OAuthConnectAuthorizationsPage,
+      };
 
       app.extensionData.for('iseekup-oauth-connect').registerSetting(function () {
         return m(OAuthConnectSettings);

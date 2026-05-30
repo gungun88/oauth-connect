@@ -9,6 +9,29 @@
     margin: 0 0 14px;
   }
 
+  .OAuthConnectPanelHeader,
+  .OAuthConnectPageTitle {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .OAuthConnectPanelHeader {
+    margin-bottom: 14px;
+  }
+
+  .OAuthConnectPanelHeader h3,
+  .OAuthConnectPageTitle h2,
+  .OAuthConnectPageTitle p {
+    margin-top: 0;
+  }
+
+  .OAuthConnectPageTitle {
+    margin: 0 0 24px;
+    padding: 24px 0 0;
+  }
+
   .OAuthConnectEndpoints {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -45,6 +68,47 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 12px;
+  }
+
+  .OAuthConnectFilters {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(140px, 0.8fr) minmax(220px, 1.4fr) minmax(110px, 0.6fr);
+    gap: 12px;
+    align-items: end;
+  }
+
+  .OAuthConnectFilters label {
+    display: block;
+  }
+
+  .OAuthConnectFilters label > span {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .OAuthConnectFilterActions,
+  .OAuthConnectPagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .OAuthConnectFilterActions {
+    grid-column: 1 / -1;
+  }
+
+  .OAuthConnectPagination {
+    margin-top: 16px;
+  }
+
+  .OAuthConnectPageCounter {
+    color: var(--muted-color);
+  }
+
+  .OAuthConnectLoading {
+    padding: 16px 0;
   }
 
   .OAuthConnectForm textarea {
@@ -124,8 +188,19 @@
   .OAuthConnectPage {
     .OAuthConnectEndpoints,
     .OAuthConnectFormGrid,
+    .OAuthConnectFilters,
     .OAuthConnectSecret {
       grid-template-columns: 1fr;
+    }
+
+    .OAuthConnectPanelHeader,
+    .OAuthConnectPageTitle {
+      display: block;
+    }
+
+    .OAuthConnectPanelHeader .Button,
+    .OAuthConnectPageTitle .Button {
+      margin-top: 10px;
     }
 
     .OAuthConnectTable {

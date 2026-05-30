@@ -19,7 +19,28 @@ iseekup-oauth-connect:
     loading: Loading...
     no_clients: No OAuth2 clients have been created yet.
     authorizations_title: Recent authorizations
+    authorizations_page_title: Authorization records
+    authorizations_page_description: Review, filter, and revoke OAuth2 user authorizations.
+    authorizations_all_title: All authorization records
     no_authorizations: No users have authorized clients yet.
+    no_authorizations_filtered: No authorization records match the current filters.
+    filters:
+      title: Filters
+      client: Client
+      all_clients: All clients
+      status: Status
+      all_statuses: All statuses
+      revoked_only: Revoked
+      search: Search user
+      search_placeholder: Username, email, or user ID
+      per_page: Per page
+    pagination:
+      summary: Total {total}, page {page} of {pages}
+      first: First
+      prev: Previous
+      page_counter: Page {page} / {pages}
+      next: Next
+      last: Last
     table:
       client: Client
       redirect_uris: Redirect URIs
@@ -41,6 +62,11 @@ iseekup-oauth-connect:
       delete: Delete
       cancel: Cancel
       revoke: Revoke
+      view_all_authorizations: View all authorizations
+      back_to_settings: Back to settings
+      apply_filters: Apply filters
+      reset_filters: Reset
+      refresh: Refresh
     form:
       name: Name
       homepage_url: Homepage URL
