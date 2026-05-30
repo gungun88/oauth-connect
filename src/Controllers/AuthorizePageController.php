@@ -7,6 +7,7 @@ use Flarum\Http\RequestUtil;
 use ISeekUp\OAuthConnect\Models\Client;
 use ISeekUp\OAuthConnect\Support\OAuthFlow;
 use ISeekUp\OAuthConnect\Support\ScopeRegistry;
+use ISeekUp\OAuthConnect\Support\Translation;
 use Laminas\Diactoros\Response\HtmlResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -18,15 +19,18 @@ class AuthorizePageController implements RequestHandlerInterface
     private $flow;
     private $scopes;
     private $app;
+    private $translation;
 
     public function __construct(
         OAuthFlow $flow,
         ScopeRegistry $scopes,
-        Application $app
+        Application $app,
+        Translation $translation
     ) {
         $this->flow = $flow;
         $this->scopes = $scopes;
         $this->app = $app;
+        $this->translation = $translation;
     }
 
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -34,19 +38,27 @@ class AuthorizePageController implements RequestHandlerInterface
         $actor = RequestUtil::getActor($request);
 
         if ($actor->isGuest()) {
-            return new HtmlResponse($this->page('Login required', $this->loginMarkup($request)), 401);
+            return new HtmlResponse($this->page(
+                $this->trans('forum.page_title.login_required', [], 'Login required'),
+                $this->loginMarkup($request)
+            ), 401);
         }
 
         try {
             [$client, $redirectUri, $requestedScopes, $state] = $this->flow->validateAuthorizeRequest($request->getQueryParams());
         } catch (Throwable $e) {
-            return new HtmlResponse($this->page('Invalid OAuth request', $this->errorMarkup($e->getMessage())), 400);
+            return new HtmlResponse($this->page(
+                $this->trans('forum.page_title.invalid_request', [], 'Invalid OAuth request'),
+                $this->errorMarkup($e->getMessage())
+            ), 400);
         }
 
         $session = $request->getAttribute('session');
         $csrfToken = $session ? $session->token() : '';
 
-        return new HtmlResponse($this->page('Authorize '.$client->name, $this->authorizeMarkup(
+        return new HtmlResponse($this->page($this->trans('forum.page_title.authorize', [
+            'client' => $client->name,
+        ], 'Authorize '.$client->name), $this->authorizeMarkup(
             $client,
             $redirectUri,
             $requestedScopes,
@@ -82,7 +94,11 @@ class AuthorizePageController implements RequestHandlerInterface
         $description = $client->description ? '<p>'.$this->escape($client->description).'</p>' : '';
         $homepage = $client->homepage_url ? '<a href="'.$this->escape($client->homepage_url).'" rel="noopener noreferrer" target="_blank">'.$this->escape($client->homepage_url).'</a>' : '';
         $clientName = $this->escape($client->name);
-        $signedInAs = $this->escape($displayName);
+        $signedInAs = $this->escape($this->trans('forum.authorize.signed_in_as', [
+            'user' => $displayName,
+        ], 'Signed in as '.$displayName.'. This application is requesting access to your account.'));
+        $approve = $this->escape($this->trans('forum.authorize.approve', [], 'Authorize'));
+        $deny = $this->escape($this->trans('forum.authorize.deny', [], 'Deny'));
         $action = $this->escape($this->baseUrl().'/oauth2/authorize');
 
         return <<<HTML
@@ -95,13 +111,13 @@ class AuthorizePageController implements RequestHandlerInterface
       {$homepage}
     </div>
   </div>
-  <p class="oc-muted">Signed in as {$signedInAs}. This application is requesting access to your account.</p>
+  <p class="oc-muted">{$signedInAs}</p>
   <ul class="oc-scopes">{$scopeItems}</ul>
   <form method="post" action="{$action}">
     {$hiddenInputs}
     <div class="oc-actions">
-      <button class="oc-button oc-primary" type="submit" name="decision" value="approve">Authorize</button>
-      <button class="oc-button" type="submit" name="decision" value="deny">Deny</button>
+      <button class="oc-button oc-primary" type="submit" name="decision" value="approve">{$approve}</button>
+      <button class="oc-button" type="submit" name="decision" value="deny">{$deny}</button>
     </div>
   </form>
 </section>
@@ -112,14 +128,19 @@ HTML;
     {
         $currentUrl = (string) $request->getUri();
         $base = $this->escape($this->baseUrl());
-        $returnUrl = $this->escape($currentUrl);
+        $title = $this->escape($this->trans('forum.login.title', [], 'Login required'));
+        $message = $this->escape($this->trans('forum.login.message', [], 'Sign in to this forum first, then open the authorization request again.'));
+        $openForum = $this->escape($this->trans('forum.login.open_forum', [], 'Open forum'));
+        $returnUrl = $this->escape($this->trans('forum.login.return_url', [
+            'url' => $currentUrl,
+        ], 'Return URL: '.$currentUrl));
 
         return <<<HTML
 <section class="oc-card">
-  <h1>Login required</h1>
-  <p class="oc-muted">Sign in to this forum first, then open the authorization request again.</p>
-  <a class="oc-button oc-primary" href="{$base}">Open forum</a>
-  <p class="oc-footnote">Return URL: {$returnUrl}</p>
+  <h1>{$title}</h1>
+  <p class="oc-muted">{$message}</p>
+  <a class="oc-button oc-primary" href="{$base}">{$openForum}</a>
+  <p class="oc-footnote">{$returnUrl}</p>
 </section>
 HTML;
     }
@@ -127,10 +148,11 @@ HTML;
     private function errorMarkup(string $message): string
     {
         $message = $this->escape($message);
+        $title = $this->escape($this->trans('forum.error.invalid_request', [], 'Invalid OAuth request'));
 
         return <<<HTML
 <section class="oc-card">
-  <h1>Invalid OAuth request</h1>
+  <h1>{$title}</h1>
   <p class="oc-error">{$message}</p>
 </section>
 HTML;
@@ -170,6 +192,11 @@ HTML;
     private function baseUrl(): string
     {
         return rtrim($this->app->url(), '/');
+    }
+
+    private function trans(string $key, array $params = [], string $fallback = ''): string
+    {
+        return $this->translation->trans($key, $params, $fallback);
     }
 
     private function escape($value): string

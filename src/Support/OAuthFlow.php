@@ -16,17 +16,20 @@ class OAuthFlow
     private $random;
     private $scopes;
     private $settings;
+    private $translation;
 
     public function __construct(
         ClientRepository $clients,
         RandomGenerator $random,
         ScopeRegistry $scopes,
-        SettingsRepositoryInterface $settings
+        SettingsRepositoryInterface $settings,
+        Translation $translation
     ) {
         $this->clients = $clients;
         $this->random = $random;
         $this->scopes = $scopes;
         $this->settings = $settings;
+        $this->translation = $translation;
     }
 
     public function validateAuthorizeRequest(array $query): array
@@ -34,30 +37,30 @@ class OAuthFlow
         $responseType = (string) ($query['response_type'] ?? '');
 
         if ($responseType !== 'code') {
-            throw new InvalidArgumentException('Only response_type=code is supported.');
+            throw new InvalidArgumentException($this->trans('forum.error.response_type', [], 'Only response_type=code is supported.'));
         }
 
         $clientId = (string) ($query['client_id'] ?? '');
         $client = $clientId !== '' ? $this->clients->findEnabled($clientId) : null;
 
         if (! $client) {
-            throw new InvalidArgumentException('Unknown or disabled client.');
+            throw new InvalidArgumentException($this->trans('forum.error.unknown_client', [], 'Unknown or disabled client.'));
         }
 
         $redirectUri = (string) ($query['redirect_uri'] ?? '');
 
         if ($redirectUri === '') {
-            throw new InvalidArgumentException('redirect_uri is required.');
+            throw new InvalidArgumentException($this->trans('forum.error.redirect_uri_required', [], 'redirect_uri is required.'));
         }
 
         if (! $client->allowsRedirectUri($redirectUri)) {
-            throw new InvalidArgumentException('redirect_uri is not registered for this client.');
+            throw new InvalidArgumentException($this->trans('forum.error.redirect_uri_not_registered', [], 'redirect_uri is not registered for this client.'));
         }
 
         $state = (string) ($query['state'] ?? '');
 
         if ($this->requiresState() && $state === '') {
-            throw new InvalidArgumentException('state is required.');
+            throw new InvalidArgumentException($this->trans('forum.error.state_required', [], 'state is required.'));
         }
 
         $scope = $this->scopes->normalize($query['scope'] ?? '', $client);
@@ -125,5 +128,10 @@ class OAuthFlow
         } while (AuthorizationCode::where('code', $code)->exists());
 
         return $code;
+    }
+
+    private function trans(string $key, array $params = [], string $fallback = ''): string
+    {
+        return $this->translation->trans($key, $params, $fallback);
     }
 }

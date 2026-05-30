@@ -5,6 +5,7 @@ namespace ISeekUp\OAuthConnect\Controllers;
 use Flarum\Http\RequestUtil;
 use ISeekUp\OAuthConnect\Support\OAuthFlow;
 use ISeekUp\OAuthConnect\Support\RequestData;
+use ISeekUp\OAuthConnect\Support\Translation;
 use Laminas\Diactoros\Response\HtmlResponse;
 use Laminas\Diactoros\Response\RedirectResponse;
 use Psr\Http\Message\ResponseInterface;
@@ -16,13 +17,16 @@ class AuthorizeController implements RequestHandlerInterface
 {
     private $flow;
     private $data;
+    private $translation;
 
     public function __construct(
         OAuthFlow $flow,
-        RequestData $data
+        RequestData $data,
+        Translation $translation
     ) {
         $this->flow = $flow;
         $this->data = $data;
+        $this->translation = $translation;
     }
 
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -45,7 +49,7 @@ class AuthorizeController implements RequestHandlerInterface
                 ]));
             }
 
-            return new HtmlResponse('Invalid OAuth request.', 400);
+            return new HtmlResponse($this->translation->trans('forum.error.invalid_request', [], 'Invalid OAuth request.'), 400);
         }
 
         if (($body['decision'] ?? '') !== 'approve') {

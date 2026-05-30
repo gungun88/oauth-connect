@@ -24,12 +24,28 @@
   }
 
   var SCOPE_OPTIONS = [
-    { key: 'user.read', label: 'Basic profile' },
-    { key: 'user.email', label: 'Email address' },
-    { key: 'user.stats', label: 'Activity counters' },
-    { key: 'user.moderation', label: 'Moderation status' },
-    { key: 'user.trust', label: 'Trust level' },
+    { key: 'user.read', labelKey: 'user_read', label: 'Basic profile' },
+    { key: 'user.email', labelKey: 'user_email', label: 'Email address' },
+    { key: 'user.stats', labelKey: 'user_stats', label: 'Activity counters' },
+    { key: 'user.moderation', labelKey: 'user_moderation', label: 'Moderation status' },
+    { key: 'user.trust', labelKey: 'user_trust', label: 'Trust level' },
   ];
+
+  function t(key, params, fallback) {
+    var id = 'iseekup-oauth-connect.admin.' + key;
+
+    if (app.translator && app.translator.trans) {
+      var translated = app.translator.trans(id, params || {});
+
+      if (translated !== id) return translated;
+    }
+
+    return fallback || id;
+  }
+
+  function scopeLabel(scope) {
+    return t('scopes.' + scope.labelKey, {}, scope.label);
+  }
 
   function redraw() {
     if (typeof m !== 'undefined' && m.redraw) {
@@ -124,13 +140,26 @@
       }
     }
 
-    return error && error.message ? error.message : 'Request failed.';
+    return error && error.message ? error.message : t('errors.request_failed', {}, 'Request failed.');
   }
 
   function scopeBadges(scopes) {
     return (scopes || []).map(function (scope) {
       return m('code.OAuthConnectScope', scope);
     });
+  }
+
+  function localizeExtensionMetadata() {
+    var extension = app.data && app.data.extensions ? app.data.extensions['iseekup-oauth-connect'] : null;
+
+    if (extension) {
+      if (extension.extra && extension.extra['flarum-extension']) {
+        extension.extra['flarum-extension'].title = t('metadata_title', {}, extension.extra['flarum-extension'].title || 'OAuth Connect');
+      }
+
+      extension.description = t('description', {}, extension.description || 'OAuth2 provider for Flarum forums.');
+      redraw();
+    }
   }
 
   function OAuthConnectSettings() {}
@@ -185,12 +214,12 @@
     var apiUrl = forumAttribute('apiUrl').replace(/\/$/, '');
 
     return m('.OAuthConnectPanel', [
-      m('h3', 'OAuth2 endpoints'),
+      m('h3', t('endpoint_panel_title', {}, 'OAuth2 endpoints')),
       m('div.OAuthConnectEndpoints', [
-        this.endpointRow('Authorization', baseUrl + '/oauth2/authorize'),
-        this.endpointRow('Token', baseUrl + '/oauth2/token'),
-        this.endpointRow('UserInfo', apiUrl + '/oauth/user'),
-        this.endpointRow('UserInfo alias', apiUrl + '/user'),
+        this.endpointRow(t('endpoints.authorization', {}, 'Authorization'), baseUrl + '/oauth2/authorize'),
+        this.endpointRow(t('endpoints.token', {}, 'Token'), baseUrl + '/oauth2/token'),
+        this.endpointRow(t('endpoints.user_info', {}, 'UserInfo'), apiUrl + '/oauth/user'),
+        this.endpointRow(t('endpoints.user_info_alias', {}, 'UserInfo alias'), apiUrl + '/user'),
       ]),
     ]);
   };
@@ -213,8 +242,8 @@
 
     return m('.OAuthConnectSecret', [
       m('div', [
-        m('strong', 'Client secret generated'),
-        m('p.helpText', 'This secret is stored hashed and is shown only once. Copy it now.'),
+        m('strong', t('secret.title', {}, 'Client secret generated')),
+        m('p.helpText', t('secret.help', {}, 'This secret is stored hashed and is shown only once. Copy it now.')),
       ]),
       m('input.FormControl', {
         value: self.secretNotice.client_secret,
@@ -228,14 +257,14 @@
         onclick: function () {
           self.copySecret();
         },
-      }, 'Copy'),
+      }, t('secret.copy', {}, 'Copy')),
       m('button.Button.Button--link', {
         type: 'button',
         onclick: function () {
           self.secretNotice = null;
           redraw();
         },
-      }, 'Dismiss'),
+      }, t('secret.dismiss', {}, 'Dismiss')),
     ]);
   };
 
@@ -251,9 +280,9 @@
     var self = this;
 
     return m('.OAuthConnectPanel', [
-      m('h3', 'Create OAuth2 client'),
+      m('h3', t('create_client_title', {}, 'Create OAuth2 client')),
       self.clientForm(self.newClient, {
-        submitLabel: 'Create client',
+        submitLabel: t('form.create_client', {}, 'Create client'),
         loading: self.saving,
         onsubmit: function (event) {
           self.createClient(event);
@@ -266,20 +295,20 @@
     var self = this;
 
     if (self.loading) {
-      return m('.OAuthConnectPanel', LoadingIndicator ? m(LoadingIndicator) : 'Loading...');
+      return m('.OAuthConnectPanel', LoadingIndicator ? m(LoadingIndicator) : t('loading', {}, 'Loading...'));
     }
 
     return m('.OAuthConnectPanel', [
-      m('h3', 'Clients'),
+      m('h3', t('clients_title', {}, 'Clients')),
       self.clients.length === 0
-        ? m('p.helpText', 'No OAuth2 clients have been created yet.')
+        ? m('p.helpText', t('no_clients', {}, 'No OAuth2 clients have been created yet.'))
         : m('table.OAuthConnectTable', [
           m('thead', m('tr', [
-            m('th', 'Client'),
-            m('th', 'Redirect URIs'),
-            m('th', 'Scopes'),
-            m('th', 'Status'),
-            m('th', 'Actions'),
+            m('th', t('table.client', {}, 'Client')),
+            m('th', t('table.redirect_uris', {}, 'Redirect URIs')),
+            m('th', t('table.scopes', {}, 'Scopes')),
+            m('th', t('table.status', {}, 'Status')),
+            m('th', t('table.actions', {}, 'Actions')),
           ])),
           m('tbody', self.clients.map(function (client) {
             return self.clientRow(client);
@@ -295,7 +324,7 @@
     if (isEditing) {
       return m('tr.OAuthConnectEditRow', [
         m('td', { colSpan: 5 }, self.clientForm(self.editClient, {
-          submitLabel: 'Save client',
+          submitLabel: t('form.save_client', {}, 'Save client'),
           loading: self.saving,
           onsubmit: function (event) {
             self.saveClient(event, client);
@@ -318,32 +347,32 @@
         return m('div.OAuthConnectUri', uri);
       })),
       m('td', scopeBadges(client.scopes)),
-      m('td', client.is_enabled ? m('span.OAuthConnectStatus--enabled', 'Enabled') : m('span.OAuthConnectStatus--disabled', 'Disabled')),
+      m('td', client.is_enabled ? m('span.OAuthConnectStatus--enabled', t('status.enabled', {}, 'Enabled')) : m('span.OAuthConnectStatus--disabled', t('status.disabled', {}, 'Disabled'))),
       m('td.OAuthConnectActions', [
         m('button.Button', {
           type: 'button',
           onclick: function () {
             self.startEdit(client);
           },
-        }, 'Edit'),
+        }, t('actions.edit', {}, 'Edit')),
         m('button.Button', {
           type: 'button',
           onclick: function () {
             self.resetSecret(client);
           },
-        }, 'Reset secret'),
+        }, t('actions.reset_secret', {}, 'Reset secret')),
         m('button.Button', {
           type: 'button',
           onclick: function () {
             self.toggleClient(client);
           },
-        }, client.is_enabled ? 'Disable' : 'Enable'),
+        }, client.is_enabled ? t('actions.disable', {}, 'Disable') : t('actions.enable', {}, 'Enable')),
         m('button.Button.Button--danger', {
           type: 'button',
           onclick: function () {
             self.deleteClient(client);
           },
-        }, 'Delete'),
+        }, t('actions.delete', {}, 'Delete')),
       ]),
     ]);
   };
@@ -351,24 +380,24 @@
   OAuthConnectSettings.prototype.clientForm = function (form, options) {
     return m('form.OAuthConnectForm', { onsubmit: options.onsubmit }, [
       m('.OAuthConnectFormGrid', [
-        this.textInput('Name', form, 'name', true),
-        this.textInput('Homepage URL', form, 'homepage_url'),
-        this.textInput('Icon URL', form, 'icon_url'),
+        this.textInput(t('form.name', {}, 'Name'), form, 'name', true),
+        this.textInput(t('form.homepage_url', {}, 'Homepage URL'), form, 'homepage_url'),
+        this.textInput(t('form.icon_url', {}, 'Icon URL'), form, 'icon_url'),
         m('label', [
-          m('span', 'Enabled'),
+          m('span', t('form.enabled', {}, 'Enabled')),
           m('select.FormControl', {
             value: form.is_enabled ? '1' : '0',
             onchange: function (event) {
               form.is_enabled = event.currentTarget.value === '1';
             },
           }, [
-            m('option', { value: '1' }, 'Enabled'),
-            m('option', { value: '0' }, 'Disabled'),
+            m('option', { value: '1' }, t('status.enabled', {}, 'Enabled')),
+            m('option', { value: '0' }, t('status.disabled', {}, 'Disabled')),
           ]),
         ]),
       ]),
       m('label', [
-        m('span', 'Description'),
+        m('span', t('form.description', {}, 'Description')),
         m('textarea.FormControl', {
           rows: 2,
           value: form.description,
@@ -378,7 +407,7 @@
         }),
       ]),
       m('label', [
-        m('span', 'Redirect URIs'),
+        m('span', t('form.redirect_uris', {}, 'Redirect URIs')),
         m('textarea.FormControl', {
           rows: 3,
           required: true,
@@ -388,10 +417,10 @@
             form.redirect_uris = event.currentTarget.value;
           },
         }),
-        m('p.helpText', 'One exact redirect URI per line. Fragments are not allowed.'),
+        m('p.helpText', t('form.redirect_uris_help', {}, 'One exact redirect URI per line. Fragments are not allowed.')),
       ]),
       m('.OAuthConnectScopes', [
-        m('span', 'Allowed scopes'),
+        m('span', t('form.allowed_scopes', {}, 'Allowed scopes')),
         SCOPE_OPTIONS.map(function (scope) {
           return m('label.checkbox', [
             m('input', {
@@ -402,7 +431,7 @@
                 form.scopes[scope.key] = event.currentTarget.checked;
               },
             }),
-            m('span', scope.key + ' - ' + scope.label),
+            m('span', scope.key + ' - ' + scopeLabel(scope)),
           ]);
         }),
       ]),
@@ -410,11 +439,11 @@
         m('button.Button.Button--primary', {
           type: 'submit',
           disabled: options.loading,
-        }, options.loading ? 'Saving...' : options.submitLabel),
+        }, options.loading ? t('form.saving', {}, 'Saving...') : options.submitLabel),
         options.oncancel ? m('button.Button', {
           type: 'button',
           onclick: options.oncancel,
-        }, 'Cancel') : null,
+        }, t('actions.cancel', {}, 'Cancel')) : null,
       ]),
     ]);
   };
@@ -505,7 +534,7 @@
   OAuthConnectSettings.prototype.resetSecret = function (client) {
     var self = this;
 
-    if (!confirm('Reset this client secret and revoke existing tokens?')) return;
+    if (!confirm(t('confirm.reset_secret', {}, 'Reset this client secret and revoke existing tokens?'))) return;
 
     app.request({
       method: 'POST',
@@ -522,7 +551,7 @@
   OAuthConnectSettings.prototype.deleteClient = function (client) {
     var self = this;
 
-    if (!confirm('Delete this client and revoke all of its tokens?')) return;
+    if (!confirm(t('confirm.delete_client', {}, 'Delete this client and revoke all of its tokens?'))) return;
 
     app.request({
       method: 'DELETE',
@@ -541,34 +570,34 @@
     if (self.loading) return null;
 
     return m('.OAuthConnectPanel', [
-      m('h3', 'Recent authorizations'),
+      m('h3', t('authorizations_title', {}, 'Recent authorizations')),
       self.authorizations.length === 0
-        ? m('p.helpText', 'No users have authorized clients yet.')
+        ? m('p.helpText', t('no_authorizations', {}, 'No users have authorized clients yet.'))
         : m('table.OAuthConnectTable', [
           m('thead', m('tr', [
-            m('th', 'Client'),
-            m('th', 'User'),
-            m('th', 'Scopes'),
-            m('th', 'Authorized'),
-            m('th', 'Status'),
-            m('th', 'Actions'),
+            m('th', t('table.client', {}, 'Client')),
+            m('th', t('table.user', {}, 'User')),
+            m('th', t('table.scopes', {}, 'Scopes')),
+            m('th', t('table.authorized', {}, 'Authorized')),
+            m('th', t('table.status', {}, 'Status')),
+            m('th', t('table.actions', {}, 'Actions')),
           ])),
           m('tbody', self.authorizations.map(function (authorization) {
             return m('tr', [
               m('td', authorization.client_name || authorization.client_id),
               m('td', [
-                authorization.display_name || authorization.username || ('User #' + authorization.user_id),
+                authorization.display_name || authorization.username || t('user_fallback', { id: authorization.user_id }, 'User #' + authorization.user_id),
                 authorization.username ? m('code.OAuthConnectClientId', authorization.username) : null,
               ]),
               m('td', scopeBadges(authorization.scopes)),
               m('td', displayDate(authorization.authorized_at)),
-              m('td', authorization.revoked_at ? 'Revoked ' + displayDate(authorization.revoked_at) : 'Active'),
+              m('td', authorization.revoked_at ? t('status.revoked', { date: displayDate(authorization.revoked_at) }, 'Revoked ' + displayDate(authorization.revoked_at)) : t('status.active', {}, 'Active')),
               m('td', !authorization.revoked_at ? m('button.Button.Button--danger', {
                 type: 'button',
                 onclick: function () {
                   self.revokeAuthorization(authorization);
                 },
-              }, 'Revoke') : null),
+              }, t('actions.revoke', {}, 'Revoke')) : null),
             ]);
           })),
         ]),
@@ -578,7 +607,7 @@
   OAuthConnectSettings.prototype.revokeAuthorization = function (authorization) {
     var self = this;
 
-    if (!confirm('Revoke this user authorization and its tokens?')) return;
+    if (!confirm(t('confirm.revoke_authorization', {}, 'Revoke this user authorization and its tokens?'))) return;
 
     app.request({
       method: 'POST',
@@ -597,6 +626,8 @@
 
   app.initializers.add('iseekup/oauth-connect', function () {
     try {
+      localizeExtensionMetadata();
+
       app.extensionData.for('iseekup-oauth-connect').registerSetting(function () {
         return m(OAuthConnectSettings);
       });

@@ -11,18 +11,22 @@ use ISeekUp\OAuthConnect\Models\ClientAuthorization;
 use ISeekUp\OAuthConnect\Models\RefreshToken;
 use ISeekUp\OAuthConnect\Support\RandomGenerator;
 use ISeekUp\OAuthConnect\Support\ScopeRegistry;
+use ISeekUp\OAuthConnect\Support\Translation;
 
 class ClientRepository
 {
     private $random;
     private $scopes;
+    private $translation;
 
     public function __construct(
         RandomGenerator $random,
-        ScopeRegistry $scopes
+        ScopeRegistry $scopes,
+        Translation $translation
     ) {
         $this->random = $random;
         $this->scopes = $scopes;
+        $this->translation = $translation;
     }
 
     public function find(string $clientId): ?Client
@@ -111,7 +115,7 @@ class ClientRepository
         $name = trim((string) ($data['name'] ?? ''));
 
         if ($name === '') {
-            throw new InvalidArgumentException('Client name is required.');
+            throw new InvalidArgumentException($this->trans('admin.errors.client_name_required', [], 'Client name is required.'));
         }
 
         $client->name = mb_substr($name, 0, 120);
@@ -139,7 +143,7 @@ class ClientRepository
         }, $items), 'strlen')));
 
         if ($items === []) {
-            throw new InvalidArgumentException('At least one redirect URI is required.');
+            throw new InvalidArgumentException($this->trans('admin.errors.redirect_uri_required', [], 'At least one redirect URI is required.'));
         }
 
         foreach ($items as $uri) {
@@ -154,15 +158,17 @@ class ClientRepository
         $parts = parse_url($uri);
 
         if (! $parts || empty($parts['scheme']) || empty($parts['host'])) {
-            throw new InvalidArgumentException("Invalid redirect URI: $uri");
+            throw new InvalidArgumentException($this->trans('admin.errors.invalid_redirect_uri', [
+                'uri' => $uri,
+            ], 'Invalid redirect URI: {uri}'));
         }
 
         if (! in_array(strtolower($parts['scheme']), ['https', 'http'], true)) {
-            throw new InvalidArgumentException('Redirect URI must use http or https.');
+            throw new InvalidArgumentException($this->trans('admin.errors.redirect_uri_scheme', [], 'Redirect URI must use http or https.'));
         }
 
         if (array_key_exists('fragment', $parts)) {
-            throw new InvalidArgumentException('Redirect URI must not contain a fragment.');
+            throw new InvalidArgumentException($this->trans('admin.errors.redirect_uri_fragment', [], 'Redirect URI must not contain a fragment.'));
         }
     }
 
@@ -175,7 +181,9 @@ class ClientRepository
         }
 
         if (! filter_var($value, FILTER_VALIDATE_URL)) {
-            throw new InvalidArgumentException("Invalid URL: $value");
+            throw new InvalidArgumentException($this->trans('admin.errors.invalid_url', [
+                'url' => $value,
+            ], 'Invalid URL: {url}'));
         }
 
         return mb_substr($value, 0, 255);
@@ -200,5 +208,10 @@ class ClientRepository
     private function date($value): ?string
     {
         return $value ? Carbon::parse($value)->toIso8601String() : null;
+    }
+
+    private function trans(string $key, array $params = [], string $fallback = ''): string
+    {
+        return $this->translation->trans($key, $params, $fallback);
     }
 }

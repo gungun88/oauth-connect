@@ -1,3 +1,107 @@
 iseekup-oauth-connect:
   admin:
     title: OAuth Connect
+    metadata_title: OAuth Connect
+    description: Turns this Flarum forum into an OAuth2 authorization center.
+    endpoint_panel_title: OAuth2 endpoints
+    endpoints:
+      authorization: Authorization
+      token: Token
+      user_info: UserInfo
+      user_info_alias: UserInfo alias
+    secret:
+      title: Client secret generated
+      help: This secret is stored hashed and is shown only once. Copy it now.
+      copy: Copy
+      dismiss: Dismiss
+    create_client_title: Create OAuth2 client
+    clients_title: Clients
+    loading: Loading...
+    no_clients: No OAuth2 clients have been created yet.
+    authorizations_title: Recent authorizations
+    no_authorizations: No users have authorized clients yet.
+    table:
+      client: Client
+      redirect_uris: Redirect URIs
+      scopes: Scopes
+      status: Status
+      actions: Actions
+      user: User
+      authorized: Authorized
+    status:
+      enabled: Enabled
+      disabled: Disabled
+      active: Active
+      revoked: Revoked {date}
+    actions:
+      edit: Edit
+      reset_secret: Reset secret
+      disable: Disable
+      enable: Enable
+      delete: Delete
+      cancel: Cancel
+      revoke: Revoke
+    form:
+      name: Name
+      homepage_url: Homepage URL
+      icon_url: Icon URL
+      enabled: Enabled
+      description: Description
+      redirect_uris: Redirect URIs
+      redirect_uris_help: One exact redirect URI per line. Fragments are not allowed.
+      allowed_scopes: Allowed scopes
+      create_client: Create client
+      save_client: Save client
+      saving: Saving...
+    confirm:
+      reset_secret: Reset this client secret and revoke existing tokens?
+      delete_client: Delete this client and revoke all of its tokens?
+      revoke_authorization: Revoke this user authorization and its tokens?
+    errors:
+      request_failed: Request failed.
+      client_not_found: Client not found.
+      client_name_required: Client name is required.
+      redirect_uri_required: At least one redirect URI is required.
+      invalid_redirect_uri: "Invalid redirect URI: {uri}"
+      redirect_uri_scheme: Redirect URI must use http or https.
+      redirect_uri_fragment: Redirect URI must not contain a fragment.
+      invalid_url: "Invalid URL: {url}"
+      revoke_authorization_required: client_id and user_id are required.
+      token_required: token is required.
+    user_fallback: "User #{id}"
+    scopes:
+      user_read: Basic profile
+      user_email: Email address
+      user_stats: Activity counters
+      user_moderation: Moderation status
+      user_trust: Trust level
+  forum:
+    page_title:
+      login_required: Login required
+      invalid_request: Invalid OAuth request
+      authorize: Authorize {client}
+    login:
+      title: Login required
+      message: Sign in to this forum first, then open the authorization request again.
+      open_forum: Open forum
+      return_url: "Return URL: {url}"
+    authorize:
+      signed_in_as: Signed in as {user}. This application is requesting access to your account.
+      approve: Authorize
+      deny: Deny
+    error:
+      invalid_request: Invalid OAuth request
+      response_type: Only response_type=code is supported.
+      unknown_client: Unknown or disabled client.
+      redirect_uri_required: redirect_uri is required.
+      redirect_uri_not_registered: redirect_uri is not registered for this client.
+      state_required: state is required.
+  errors:
+    unknown_scope: "Unknown scope: {scope}"
+    scope_not_allowed: "Scope is not allowed for this client: {scope}"
+  scopes:
+    user_read: Read basic profile
+    user_email: Read email address
+    user_stats: Read public activity counters
+    user_moderation: Read moderation status
+    user_trust: Read trust level when installed

@@ -1,3 +1,107 @@
 iseekup-oauth-connect:
   admin:
-    title: OAuth Connect
+    title: OAuth 授权中心
+    metadata_title: OAuth 授权中心
+    description: 将当前 Flarum 论坛变成 OAuth2 授权中心。
+    endpoint_panel_title: OAuth2 接口地址
+    endpoints:
+      authorization: 授权地址
+      token: 令牌地址
+      user_info: 用户信息
+      user_info_alias: 用户信息别名
+    secret:
+      title: 客户端密钥已生成
+      help: 该密钥会以哈希形式保存，并且只显示这一次，请现在复制保存。
+      copy: 复制
+      dismiss: 关闭
+    create_client_title: 创建 OAuth2 客户端
+    clients_title: 客户端
+    loading: 加载中...
+    no_clients: 还没有创建 OAuth2 客户端。
+    authorizations_title: 最近授权记录
+    no_authorizations: 还没有用户授权过客户端。
+    table:
+      client: 客户端
+      redirect_uris: 回调地址
+      scopes: 授权范围
+      status: 状态
+      actions: 操作
+      user: 用户
+      authorized: 授权时间
+    status:
+      enabled: 已启用
+      disabled: 已禁用
+      active: 有效
+      revoked: 已撤销 {date}
+    actions:
+      edit: 编辑
+      reset_secret: 重置密钥
+      disable: 禁用
+      enable: 启用
+      delete: 删除
+      cancel: 取消
+      revoke: 撤销
+    form:
+      name: 名称
+      homepage_url: 主页 URL
+      icon_url: 图标 URL
+      enabled: 启用状态
+      description: 描述
+      redirect_uris: 回调地址
+      redirect_uris_help: 每行填写一个完整且精确匹配的回调地址，不允许包含 URL 片段。
+      allowed_scopes: 允许的授权范围
+      create_client: 创建客户端
+      save_client: 保存客户端
+      saving: 保存中...
+    confirm:
+      reset_secret: 确定要重置该客户端密钥并撤销已有令牌吗？
+      delete_client: 确定要删除该客户端并撤销它的全部令牌吗？
+      revoke_authorization: 确定要撤销该用户授权及相关令牌吗？
+    errors:
+      request_failed: 请求失败。
+      client_not_found: 客户端不存在。
+      client_name_required: 请填写客户端名称。
+      redirect_uri_required: 请至少填写一个回调地址。
+      invalid_redirect_uri: "回调地址无效：{uri}"
+      redirect_uri_scheme: 回调地址必须使用 http 或 https。
+      redirect_uri_fragment: 回调地址不能包含 URL 片段。
+      invalid_url: "URL 无效：{url}"
+      revoke_authorization_required: 缺少 client_id 或 user_id。
+      token_required: 缺少 token。
+    user_fallback: "用户 #{id}"
+    scopes:
+      user_read: 基本资料
+      user_email: 邮箱地址
+      user_stats: 活跃数据
+      user_moderation: 管理状态
+      user_trust: 信任等级
+  forum:
+    page_title:
+      login_required: 需要登录
+      invalid_request: OAuth 请求无效
+      authorize: 授权 {client}
+    login:
+      title: 需要登录
+      message: 请先登录该论坛，然后重新打开授权请求。
+      open_forum: 打开论坛
+      return_url: "返回地址：{url}"
+    authorize:
+      signed_in_as: 当前登录用户为 {user}。该应用正在请求访问你的账号。
+      approve: 授权
+      deny: 拒绝
+    error:
+      invalid_request: OAuth 请求无效
+      response_type: 仅支持 response_type=code。
+      unknown_client: 客户端不存在或已禁用。
+      redirect_uri_required: 缺少 redirect_uri。
+      redirect_uri_not_registered: redirect_uri 未在该客户端中登记。
+      state_required: 缺少 state。
+  errors:
+    unknown_scope: "未知授权范围：{scope}"
+    scope_not_allowed: "该客户端不允许请求此授权范围：{scope}"
+  scopes:
+    user_read: 读取基本资料
+    user_email: 读取邮箱地址
+    user_stats: 读取公开活跃数据
+    user_moderation: 读取管理状态
+    user_trust: 读取已安装的信任等级

@@ -6,6 +6,7 @@ use Flarum\Http\RequestUtil;
 use InvalidArgumentException;
 use ISeekUp\OAuthConnect\Repositories\ClientRepository;
 use ISeekUp\OAuthConnect\Support\RequestData;
+use ISeekUp\OAuthConnect\Support\Translation;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -15,13 +16,16 @@ class UpdateClientController implements RequestHandlerInterface
 {
     private $clients;
     private $data;
+    private $translation;
 
     public function __construct(
         ClientRepository $clients,
-        RequestData $data
+        RequestData $data,
+        Translation $translation
     ) {
         $this->clients = $clients;
         $this->data = $data;
+        $this->translation = $translation;
     }
 
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -31,7 +35,7 @@ class UpdateClientController implements RequestHandlerInterface
         $client = $this->clients->find((string) ($request->getQueryParams()['clientId'] ?? ''));
 
         if (! $client) {
-            return new JsonResponse(['error' => 'Client not found.'], 404);
+            return new JsonResponse(['error' => $this->translation->trans('admin.errors.client_not_found', [], 'Client not found.')], 404);
         }
 
         try {
