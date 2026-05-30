@@ -108,12 +108,34 @@
     return app.route('oauthConnectAuthorizations', routeParams);
   }
 
+  function adminRouteUrl(route) {
+    var baseUrl = forumAttribute('baseUrl');
+
+    if (!baseUrl && typeof window !== 'undefined') {
+      baseUrl = window.location.origin + (forumAttribute('basePath') || '');
+    }
+
+    return baseUrl.replace(/\/$/, '') + '/admin#' + route;
+  }
+
   function setRoute(route) {
     if (typeof setRouteWithForcedRefresh === 'function') {
       setRouteWithForcedRefresh(route);
     } else {
       m.route.set(route);
     }
+  }
+
+  function routeLink(route) {
+    return {
+      href: adminRouteUrl(route),
+      onclick: function (event) {
+        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+
+        event.preventDefault();
+        setRoute(route);
+      },
+    };
   }
 
   function extensionRoute(params) {
@@ -703,10 +725,7 @@
     return m('.OAuthConnectPanel', [
       m('.OAuthConnectPanelHeader', [
         m('h3', t('authorizations_title', {}, 'Recent authorizations')),
-        m('a.Button', {
-          href: authorizationsRoute(),
-          oncreate: m.route.link,
-        }, t('actions.view_all_authorizations', {}, 'View all authorizations')),
+        m('a.Button', routeLink(authorizationsRoute()), t('actions.view_all_authorizations', {}, 'View all authorizations')),
       ]),
       self.authorizations.length === 0
         ? m('p.helpText', t('no_authorizations', {}, 'No users have authorized clients yet.'))
@@ -818,10 +837,7 @@
             m('h2', t('authorizations_page_title', {}, 'Authorization records')),
             m('p.helpText', t('authorizations_page_description', {}, 'Review, filter, and revoke OAuth2 user authorizations.')),
           ]),
-          m('a.Button', {
-            href: extensionRoute(),
-            oncreate: m.route.link,
-          }, t('actions.back_to_settings', {}, 'Back to settings')),
+          m('a.Button', routeLink(extensionRoute()), t('actions.back_to_settings', {}, 'Back to settings')),
         ]),
         self.error ? m('.Alert.Alert--error', self.error) : null,
         self.filtersPanel(),
