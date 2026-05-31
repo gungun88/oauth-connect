@@ -78,7 +78,7 @@ class AuthorizePageController implements RequestHandlerInterface
         $scopeItems = implode('', array_map(function ($scope) use ($scopeLabels) {
             $label = $scopeLabels[$scope] ?? $scope;
 
-            return '<li class="oc-permission"><span class="oc-permission-icon"></span><span><strong>'.$this->escape($label).'</strong><small>'.$this->escape($scope).'</small></span></li>';
+            return '<li class="oc-permission"><span class="oc-permission-icon"></span><span><strong>'.$this->escape($label).'</strong></span></li>';
         }, $requestedScopes));
 
         $hidden = [
@@ -94,9 +94,6 @@ class AuthorizePageController implements RequestHandlerInterface
             return '<input type="hidden" name="'.$this->escape($name).'" value="'.$this->escape($value).'">';
         }, array_keys($hidden), $hidden));
 
-        $logo = $client->icon_url
-            ? '<img src="'.$this->escape($client->icon_url).'" alt="">'
-            : '<div class="oc-app-fallback">'.$this->escape($this->initials($client->name)).'</div>';
         $description = $client->description ? '<p class="oc-description">'.$this->escape($client->description).'</p>' : '';
         $homepage = $client->homepage_url ? '<a href="'.$this->escape($client->homepage_url).'" rel="noopener noreferrer" target="_blank">'.$this->escape($client->homepage_url).'</a>' : '-';
         $clientName = $this->escape($client->name);
@@ -113,8 +110,6 @@ class AuthorizePageController implements RequestHandlerInterface
         $appInfoTitle = $this->escape($this->trans('forum.authorize.app_info_title', [], 'Application info'));
         $homepageLabel = $this->escape($this->trans('forum.authorize.homepage_label', [], 'Homepage'));
         $applicationLabel = $this->escape($this->trans('forum.authorize.application_label', [], 'Application'));
-        $typeLabel = $this->escape($this->trans('forum.authorize.type_label', [], 'Type'));
-        $clientType = $this->escape($this->trans('forum.authorize.client_type', [], 'OAuth2 client'));
         $permissionsTitle = $this->escape($this->trans('forum.authorize.permissions_title', [], 'This application will be able to'));
         $approve = $this->escape($this->trans('forum.authorize.approve', [], 'Authorize'));
         $deny = $this->escape($this->trans('forum.authorize.deny', [], 'Deny'));
@@ -137,13 +132,6 @@ class AuthorizePageController implements RequestHandlerInterface
 
     <section class="oc-info-card">
       <h2>{$appInfoTitle}</h2>
-      <div class="oc-app-summary">
-        <div class="oc-app-icon">{$logo}</div>
-        <div>
-          <strong>{$clientName}</strong>
-          <span>{$clientType}</span>
-        </div>
-      </div>
       <div class="oc-info-row">
         <span>{$homepageLabel}</span>
         <div>{$homepage}</div>
@@ -151,10 +139,6 @@ class AuthorizePageController implements RequestHandlerInterface
       <div class="oc-info-row">
         <span>{$applicationLabel}</span>
         <div>{$clientName}</div>
-      </div>
-      <div class="oc-info-row">
-        <span>{$typeLabel}</span>
-        <div>{$clientType}</div>
       </div>
       {$description}
     </section>
@@ -233,8 +217,10 @@ a:hover{text-decoration:underline}
 .oc-shell-simple{text-align:center}
 .oc-hero-icon{width:88px;height:88px;margin:0 auto 18px;border:1px solid #e3e3df;border-radius:18px;background:#eeeeec;display:grid;place-items:center}
 .oc-hero-error:before{content:"";width:34px;height:34px;border-radius:50%;border:4px solid #b42318}
-.oc-lock{position:relative;width:34px;height:28px;border:4px solid #555;border-radius:6px}
-.oc-lock:before{content:"";position:absolute;left:5px;top:-22px;width:16px;height:18px;border:4px solid #555;border-bottom:0;border-radius:14px 14px 0 0}
+.oc-lock,.oc-lock:before,.oc-lock:after{box-sizing:border-box}
+.oc-lock{position:relative;width:38px;height:42px;display:block}
+.oc-lock:before{content:"";position:absolute;left:8px;top:0;width:22px;height:22px;border:4px solid #555;border-bottom:0;border-radius:14px 14px 0 0}
+.oc-lock:after{content:"";position:absolute;left:2px;bottom:0;width:34px;height:28px;border:4px solid #555;border-radius:7px}
 .oc-title{margin:0;color:#121212;text-align:center;font-size:30px;line-height:1.15;font-weight:800;letter-spacing:0}
 .oc-subtitle{margin:10px 0 28px;color:#858585;text-align:center;font-size:15px}
 .oc-account-card,.oc-info-card{width:100%;border:1px solid #deded9;border-radius:8px;background:#fff;box-shadow:0 1px 1px rgba(0,0,0,.02)}
@@ -244,10 +230,6 @@ a:hover{text-decoration:underline}
 .oc-account-card span{display:block;color:#878787;font-size:13px}
 .oc-info-card{margin-bottom:22px;padding:18px 20px}
 .oc-info-card h2{margin:0 0 14px;color:#8a8a8a;font-size:13px;font-weight:700}
-.oc-app-summary{display:flex;gap:12px;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #eeeeeb}
-.oc-app-icon img,.oc-app-fallback{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#2563eb;color:#fff;display:grid;place-items:center;font-weight:800}
-.oc-app-summary strong{display:block;color:#232323}
-.oc-app-summary span{display:block;color:#8a8a8a;font-size:13px}
 .oc-info-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;margin:8px 0;color:#6e6e6e}
 .oc-info-row>span{color:#9a9a9a}
 .oc-info-row div{min-width:0;overflow-wrap:anywhere}
@@ -259,7 +241,6 @@ a:hover{text-decoration:underline}
 .oc-permission-icon:before{content:"";position:absolute;left:8px;top:3px;width:8px;height:8px;border:2px solid #555;border-radius:50%}
 .oc-permission-icon:after{content:"";position:absolute;left:4px;bottom:2px;width:16px;height:8px;border:2px solid #555;border-radius:8px 8px 3px 3px}
 .oc-permission strong{display:block;color:#333;font-weight:700}
-.oc-permission small{display:block;color:#8a8a8a;font-size:12px}
 .oc-action-form{display:flex;flex-direction:column;gap:10px}
 .oc-button{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;padding:0 18px;border-radius:24px;text-decoration:none;cursor:pointer;font:inherit;font-weight:700}
 .oc-primary{border:1px solid #111;background:#111;color:#fff}

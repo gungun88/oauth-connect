@@ -127,8 +127,6 @@ iseekup-oauth-connect:
       app_info_title: Application info
       homepage_label: Homepage
       application_label: Application
-      type_label: Type
-      client_type: OAuth2 client
       permissions_title: This application will be able to
       approve: Authorize
       deny: Deny
