@@ -15,9 +15,13 @@ iseekup-oauth-connect:
       copy: Copy
       dismiss: Dismiss
     create_client_title: Create OAuth2 client
-    clients_title: Clients
+    clients_title: Recent clients
+    clients_page_title: Client management
+    clients_page_description: Review, filter, and manage OAuth2 clients.
+    clients_all_title: All clients
     loading: Loading...
     no_clients: No OAuth2 clients have been created yet.
+    no_clients_filtered: No clients match the current filters.
     authorizations_title: Recent authorizations
     authorizations_page_title: Authorization records
     authorizations_page_description: Review, filter, and revoke OAuth2 user authorizations.
@@ -30,9 +34,13 @@ iseekup-oauth-connect:
       all_clients: All clients
       status: Status
       all_statuses: All statuses
+      enabled_only: Enabled
+      disabled_only: Disabled
       revoked_only: Revoked
       search: Search user
       search_placeholder: Username, email, or user ID
+      search_client: Search client
+      search_client_placeholder: Name, client ID, or homepage URL
       per_page: Per page
     pagination:
       summary: Total {total}, page {page} of {pages}
@@ -62,6 +70,7 @@ iseekup-oauth-connect:
       delete: Delete
       cancel: Cancel
       revoke: Revoke
+      view_all_clients: View all clients
       view_all_authorizations: View all authorizations
       back_to_settings: Back to settings
       apply_filters: Apply filters

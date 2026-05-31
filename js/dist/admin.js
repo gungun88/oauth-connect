@@ -94,6 +94,17 @@
     return api('/authorizations') + queryString(apiParams);
   }
 
+  function clientsApi(params) {
+    var apiParams = Object.assign({}, params || {});
+
+    if (apiParams.page !== undefined && apiParams.page !== null && apiParams.page !== '') {
+      apiParams.page_number = apiParams.page;
+      delete apiParams.page;
+    }
+
+    return api('/clients') + queryString(apiParams);
+  }
+
   function authorizationsRoute(params) {
     var routeParams = {};
 
@@ -106,6 +117,20 @@
     });
 
     return app.route('oauthConnectAuthorizations', routeParams);
+  }
+
+  function clientsRoute(params) {
+    var routeParams = {};
+
+    Object.keys(params || {}).forEach(function (key) {
+      var value = params[key];
+
+      if (value !== undefined && value !== null && value !== '') {
+        routeParams[key] = value;
+      }
+    });
+
+    return app.route('oauthConnectClients', routeParams);
   }
 
   function adminRouteUrl(route) {
@@ -136,6 +161,18 @@
         setRoute(route);
       },
     };
+  }
+
+  function refreshClientList(component) {
+    if (component && typeof component.loadClients === 'function') {
+      return component.loadClients();
+    }
+
+    if (component && typeof component.load === 'function') {
+      return component.load();
+    }
+
+    return Promise.resolve();
   }
 
   function extensionRoute(params) {
@@ -290,6 +327,21 @@
     ]);
   }
 
+  function clientTable(clients, component) {
+    return m('table.OAuthConnectTable', [
+      m('thead', m('tr', [
+        m('th', t('table.client', {}, 'Client')),
+        m('th', t('table.redirect_uris', {}, 'Redirect URIs')),
+        m('th', t('table.scopes', {}, 'Scopes')),
+        m('th', t('table.status', {}, 'Status')),
+        m('th', t('table.actions', {}, 'Actions')),
+      ])),
+      m('tbody', clients.map(function (client) {
+        return component.clientRow(client);
+      })),
+    ]);
+  }
+
   function localizeExtensionMetadata() {
     var extension = app.data && app.data.extensions ? app.data.extensions['iseekup-oauth-connect'] : null;
 
@@ -327,7 +379,7 @@
 
     var clientsRequest = app.request({
       method: 'GET',
-      url: api('/clients'),
+      url: clientsApi({ limit: 10 }),
     }).then(function (response) {
       self.clients = response.data || [];
     }, function (error) {
@@ -339,7 +391,7 @@
 
     app.request({
       method: 'GET',
-      url: authorizationsApi({ limit: 20 }),
+      url: authorizationsApi({ limit: 10 }),
     }).then(function (response) {
       self.authorizations = response.data || [];
     }, function (error) {
@@ -452,21 +504,13 @@
     }
 
     return m('.OAuthConnectPanel', [
-      m('h3', t('clients_title', {}, 'Clients')),
+      m('.OAuthConnectPanelHeader', [
+        m('h3', t('clients_title', {}, 'Recent clients')),
+        m('a.Button', routeLink(clientsRoute()), t('actions.view_all_clients', {}, 'View all clients')),
+      ]),
       self.clients.length === 0
         ? m('p.helpText', t('no_clients', {}, 'No OAuth2 clients have been created yet.'))
-        : m('table.OAuthConnectTable', [
-          m('thead', m('tr', [
-            m('th', t('table.client', {}, 'Client')),
-            m('th', t('table.redirect_uris', {}, 'Redirect URIs')),
-            m('th', t('table.scopes', {}, 'Scopes')),
-            m('th', t('table.status', {}, 'Status')),
-            m('th', t('table.actions', {}, 'Actions')),
-          ])),
-          m('tbody', self.clients.map(function (client) {
-            return self.clientRow(client);
-          })),
-        ]),
+        : clientTable(self.clients, self),
     ]);
   };
 
@@ -657,7 +701,7 @@
     }).then(function () {
       self.editingClientId = null;
       self.editClient = null;
-      return self.load();
+      return refreshClientList(self);
     }, function (error) {
       self.error = errorMessage(error);
     }).then(function () {
@@ -677,7 +721,7 @@
       url: api('/clients/' + encodeURIComponent(client.client_id)),
       body: payloadFromForm(form),
     }).then(function () {
-      return self.load();
+      return refreshClientList(self);
     }, function (error) {
       self.error = errorMessage(error);
       redraw();
@@ -694,7 +738,7 @@
       url: api('/clients/' + encodeURIComponent(client.client_id) + '/reset-secret'),
     }).then(function (response) {
       self.secretNotice = response.data;
-      return self.load();
+      return refreshClientList(self);
     }, function (error) {
       self.error = errorMessage(error);
       redraw();
@@ -710,7 +754,7 @@
       method: 'DELETE',
       url: api('/clients/' + encodeURIComponent(client.client_id)),
     }).then(function () {
-      return self.load();
+      return refreshClientList(self);
     }, function (error) {
       self.error = errorMessage(error);
       redraw();
@@ -755,6 +799,244 @@
     });
   };
 
+  function OAuthConnectClientsPage() {}
+
+  OAuthConnectClientsPage.prototype.oninit = function () {
+    this.loading = true;
+    this.loadingClients = true;
+    this.saving = false;
+    this.clients = [];
+    this.meta = {
+      page: 1,
+      limit: 20,
+      total: 0,
+      total_pages: 1,
+      has_prev: false,
+      has_next: false,
+    };
+    this.error = null;
+    this.editingClientId = null;
+    this.editClient = null;
+    this.secretNotice = null;
+    this.filters = this.filtersFromRoute();
+
+    if (app.setTitle) {
+      app.setTitle(t('clients_page_title', {}, 'Client management'));
+    }
+
+    this.loadClients();
+  };
+
+  OAuthConnectClientsPage.prototype.filtersFromRoute = function () {
+    return {
+      page: intParam('page', 1),
+      limit: intParam('limit', 20),
+      status: m.route.param('status') || '',
+      q: m.route.param('q') || '',
+    };
+  };
+
+  OAuthConnectClientsPage.prototype.loadClients = function () {
+    var self = this;
+
+    self.loadingClients = true;
+    self.error = null;
+
+    return app.request({
+      method: 'GET',
+      url: clientsApi(self.filters),
+    }).then(function (response) {
+      self.clients = response.data || [];
+      self.meta = response.meta || self.meta;
+    }, function (error) {
+      self.error = errorMessage(error);
+    }).then(function () {
+      self.loading = false;
+      self.loadingClients = false;
+      redraw();
+    });
+  };
+
+  OAuthConnectClientsPage.prototype.view = function () {
+    var self = this;
+
+    return m('.OAuthConnectPage.OAuthConnectClientPage', [
+      m('.container', [
+        m('.OAuthConnectPageTitle', [
+          m('div', [
+            m('h2', t('clients_page_title', {}, 'Client management')),
+            m('p.helpText', t('clients_page_description', {}, 'Review, filter, and manage OAuth2 clients.')),
+          ]),
+          m('a.Button', routeLink(extensionRoute()), t('actions.back_to_settings', {}, 'Back to settings')),
+        ]),
+        self.error ? m('.Alert.Alert--error', self.error) : null,
+        self.secretNotice ? self.secretPanel() : null,
+        self.filtersPanel(),
+        self.recordsPanel(),
+      ]),
+    ]);
+  };
+
+  OAuthConnectClientsPage.prototype.filtersPanel = function () {
+    var self = this;
+
+    return m('.OAuthConnectPanel', [
+      m('h3', t('filters.title', {}, 'Filters')),
+      m('form.OAuthConnectFilters.OAuthConnectClientFilters', {
+        onsubmit: function (event) {
+          event.preventDefault();
+          self.goToPage(1);
+        },
+      }, [
+        m('label', [
+          m('span', t('filters.status', {}, 'Status')),
+          m('select.FormControl', {
+            value: self.filters.status,
+            onchange: function (event) {
+              self.filters.status = event.currentTarget.value;
+              self.goToPage(1);
+            },
+          }, [
+            m('option', { value: '' }, t('filters.all_statuses', {}, 'All statuses')),
+            m('option', { value: 'enabled' }, t('filters.enabled_only', {}, 'Enabled')),
+            m('option', { value: 'disabled' }, t('filters.disabled_only', {}, 'Disabled')),
+          ]),
+        ]),
+        m('label', [
+          m('span', t('filters.search_client', {}, 'Search client')),
+          m('input.FormControl', {
+            type: 'search',
+            value: self.filters.q,
+            placeholder: t('filters.search_client_placeholder', {}, 'Name, client ID, or homepage URL'),
+            oninput: function (event) {
+              self.filters.q = event.currentTarget.value;
+            },
+          }),
+        ]),
+        m('label', [
+          m('span', t('filters.per_page', {}, 'Per page')),
+          m('select.FormControl', {
+            value: String(self.filters.limit),
+            onchange: function (event) {
+              self.filters.limit = parseInt(event.currentTarget.value, 10) || 20;
+              self.goToPage(1);
+            },
+          }, [
+            m('option', { value: '20' }, '20'),
+            m('option', { value: '50' }, '50'),
+            m('option', { value: '100' }, '100'),
+          ]),
+        ]),
+        m('.OAuthConnectFilterActions', [
+          m('button.Button.Button--primary', { type: 'submit' }, t('actions.apply_filters', {}, 'Apply filters')),
+          m('button.Button', {
+            type: 'button',
+            onclick: function () {
+              self.resetFilters();
+            },
+          }, t('actions.reset_filters', {}, 'Reset')),
+          m('button.Button', {
+            type: 'button',
+            onclick: function () {
+              self.loadClients();
+            },
+          }, t('actions.refresh', {}, 'Refresh')),
+        ]),
+      ]),
+    ]);
+  };
+
+  OAuthConnectClientsPage.prototype.recordsPanel = function () {
+    var self = this;
+    var summary = t('pagination.summary', {
+      total: self.meta.total || 0,
+      page: self.meta.page || 1,
+      pages: self.meta.total_pages || 1,
+    }, 'Total {total}, page {page} of {pages}');
+
+    return m('.OAuthConnectPanel', [
+      m('.OAuthConnectPanelHeader', [
+        m('h3', t('clients_all_title', {}, 'All clients')),
+        m('span.helpText', summary),
+      ]),
+      self.loadingClients
+        ? m('.OAuthConnectLoading', LoadingIndicator ? m(LoadingIndicator) : t('loading', {}, 'Loading...'))
+        : self.clients.length === 0
+          ? m('p.helpText', t('no_clients_filtered', {}, 'No clients match the current filters.'))
+          : clientTable(self.clients, self),
+      self.pagination(),
+    ]);
+  };
+
+  OAuthConnectClientsPage.prototype.pagination = function () {
+    var self = this;
+
+    return m('.OAuthConnectPagination', [
+      m('button.Button', {
+        type: 'button',
+        disabled: !self.meta.has_prev || self.loadingClients,
+        onclick: function () {
+          self.goToPage(1);
+        },
+      }, t('pagination.first', {}, 'First')),
+      m('button.Button', {
+        type: 'button',
+        disabled: !self.meta.has_prev || self.loadingClients,
+        onclick: function () {
+          self.goToPage((self.meta.page || 1) - 1);
+        },
+      }, t('pagination.prev', {}, 'Previous')),
+      m('span.OAuthConnectPageCounter', t('pagination.page_counter', {
+        page: self.meta.page || 1,
+        pages: self.meta.total_pages || 1,
+      }, 'Page {page} / {pages}')),
+      m('button.Button', {
+        type: 'button',
+        disabled: !self.meta.has_next || self.loadingClients,
+        onclick: function () {
+          self.goToPage((self.meta.page || 1) + 1);
+        },
+      }, t('pagination.next', {}, 'Next')),
+      m('button.Button', {
+        type: 'button',
+        disabled: !self.meta.has_next || self.loadingClients,
+        onclick: function () {
+          self.goToPage(self.meta.total_pages || 1);
+        },
+      }, t('pagination.last', {}, 'Last')),
+    ]);
+  };
+
+  OAuthConnectClientsPage.prototype.goToPage = function (page) {
+    this.filters.page = Math.max(1, page);
+    setRoute(clientsRoute(this.filters));
+  };
+
+  OAuthConnectClientsPage.prototype.resetFilters = function () {
+    this.filters = {
+      page: 1,
+      limit: 20,
+      status: '',
+      q: '',
+    };
+    setRoute(clientsRoute(this.filters));
+  };
+
+  [
+    'clientRow',
+    'clientForm',
+    'textInput',
+    'startEdit',
+    'saveClient',
+    'toggleClient',
+    'resetSecret',
+    'deleteClient',
+    'secretPanel',
+    'copySecret',
+  ].forEach(function (method) {
+    OAuthConnectClientsPage.prototype[method] = OAuthConnectSettings.prototype[method];
+  });
+
   function OAuthConnectAuthorizationsPage() {}
 
   OAuthConnectAuthorizationsPage.prototype.oninit = function () {
@@ -796,7 +1078,7 @@
 
     return app.request({
       method: 'GET',
-      url: api('/clients'),
+      url: clientsApi({ limit: 100 }),
     }).then(function (response) {
       self.clients = response.data || [];
       redraw();
@@ -1036,6 +1318,11 @@
       app.routes.oauthConnectAuthorizations = {
         path: '/oauth-connect/authorizations',
         component: OAuthConnectAuthorizationsPage,
+      };
+
+      app.routes.oauthConnectClients = {
+        path: '/oauth-connect/clients',
+        component: OAuthConnectClientsPage,
       };
 
       app.extensionData.for('iseekup-oauth-connect').registerSetting(function () {

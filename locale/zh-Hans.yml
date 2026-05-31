@@ -15,9 +15,13 @@ iseekup-oauth-connect:
       copy: 复制
       dismiss: 关闭
     create_client_title: 创建 OAuth2 客户端
-    clients_title: 客户端
+    clients_title: 最近客户端
+    clients_page_title: 客户端管理
+    clients_page_description: 查看、筛选并管理 OAuth2 客户端。
+    clients_all_title: 全部客户端
     loading: 加载中...
     no_clients: 还没有创建 OAuth2 客户端。
+    no_clients_filtered: 当前筛选条件下没有客户端。
     authorizations_title: 最近授权记录
     authorizations_page_title: 授权记录管理
     authorizations_page_description: 查看、筛选并撤销 OAuth2 用户授权。
@@ -30,9 +34,13 @@ iseekup-oauth-connect:
       all_clients: 全部客户端
       status: 状态
       all_statuses: 全部状态
+      enabled_only: 已启用
+      disabled_only: 已禁用
       revoked_only: 已撤销
       search: 搜索用户
       search_placeholder: 用户名、邮箱或用户 ID
+      search_client: 搜索客户端
+      search_client_placeholder: 名称、客户端 ID 或主页 URL
       per_page: 每页数量
     pagination:
       summary: 共 {total} 条，第 {page} / {pages} 页
@@ -62,6 +70,7 @@ iseekup-oauth-connect:
       delete: 删除
       cancel: 取消
       revoke: 撤销
+      view_all_clients: 查看全部客户端
       view_all_authorizations: 查看全部授权记录
       back_to_settings: 返回设置
       apply_filters: 应用筛选
