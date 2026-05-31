@@ -122,6 +122,14 @@ iseekup-oauth-connect:
       return_url: "返回地址：{url}"
     authorize:
       signed_in_as: 当前登录用户为 {user}。该应用正在请求访问你的账号。
+      subtitle: 请求访问你的 {forum} 账户
+      account_caption: 以 {user} 的身份授权
+      app_info_title: 应用信息
+      homepage_label: 主页
+      application_label: 应用
+      type_label: 类型
+      client_type: OAuth2 客户端
+      permissions_title: 将获取以下权限
       approve: 授权
       deny: 拒绝
     error:

@@ -122,6 +122,14 @@ iseekup-oauth-connect:
       return_url: "Return URL: {url}"
     authorize:
       signed_in_as: Signed in as {user}. This application is requesting access to your account.
+      subtitle: Requesting access to your {forum} account
+      account_caption: Authorize as {user}
+      app_info_title: Application info
+      homepage_label: Homepage
+      application_label: Application
+      type_label: Type
+      client_type: OAuth2 client
+      permissions_title: This application will be able to
       approve: Authorize
       deny: Deny
     error:

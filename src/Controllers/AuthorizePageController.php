@@ -4,6 +4,7 @@ namespace ISeekUp\OAuthConnect\Controllers;
 
 use Flarum\Foundation\Application;
 use Flarum\Http\RequestUtil;
+use Flarum\Settings\SettingsRepositoryInterface;
 use ISeekUp\OAuthConnect\Models\Client;
 use ISeekUp\OAuthConnect\Support\OAuthFlow;
 use ISeekUp\OAuthConnect\Support\ScopeRegistry;
@@ -19,17 +20,20 @@ class AuthorizePageController implements RequestHandlerInterface
     private $flow;
     private $scopes;
     private $app;
+    private $settings;
     private $translation;
 
     public function __construct(
         OAuthFlow $flow,
         ScopeRegistry $scopes,
         Application $app,
+        SettingsRepositoryInterface $settings,
         Translation $translation
     ) {
         $this->flow = $flow;
         $this->scopes = $scopes;
         $this->app = $app;
+        $this->settings = $settings;
         $this->translation = $translation;
     }
 
@@ -74,7 +78,7 @@ class AuthorizePageController implements RequestHandlerInterface
         $scopeItems = implode('', array_map(function ($scope) use ($scopeLabels) {
             $label = $scopeLabels[$scope] ?? $scope;
 
-            return '<li><strong>'.$this->escape($scope).'</strong><span>'.$this->escape($label).'</span></li>';
+            return '<li class="oc-permission"><span class="oc-permission-icon"></span><span><strong>'.$this->escape($label).'</strong><small>'.$this->escape($scope).'</small></span></li>';
         }, $requestedScopes));
 
         $hidden = [
@@ -90,37 +94,83 @@ class AuthorizePageController implements RequestHandlerInterface
             return '<input type="hidden" name="'.$this->escape($name).'" value="'.$this->escape($value).'">';
         }, array_keys($hidden), $hidden));
 
-        $logo = $client->icon_url ? '<img src="'.$this->escape($client->icon_url).'" alt="">' : '<div class="oc-icon">OAuth</div>';
-        $description = $client->description ? '<p>'.$this->escape($client->description).'</p>' : '';
-        $homepage = $client->homepage_url ? '<a href="'.$this->escape($client->homepage_url).'" rel="noopener noreferrer" target="_blank">'.$this->escape($client->homepage_url).'</a>' : '';
+        $logo = $client->icon_url
+            ? '<img src="'.$this->escape($client->icon_url).'" alt="">'
+            : '<div class="oc-app-fallback">'.$this->escape($this->initials($client->name)).'</div>';
+        $description = $client->description ? '<p class="oc-description">'.$this->escape($client->description).'</p>' : '';
+        $homepage = $client->homepage_url ? '<a href="'.$this->escape($client->homepage_url).'" rel="noopener noreferrer" target="_blank">'.$this->escape($client->homepage_url).'</a>' : '-';
         $clientName = $this->escape($client->name);
-        $signedInAs = $this->escape($this->trans('forum.authorize.signed_in_as', [
-            'user' => $displayName,
-        ], 'Signed in as '.$displayName.'. This application is requesting access to your account.'));
+        $rawDisplayName = $displayName;
+        $displayName = $this->escape($rawDisplayName);
+        $accountInitials = $this->escape($this->initials($rawDisplayName));
+        $forumTitle = $this->settings->get('forum_title', 'this forum');
+        $subtitle = $this->escape($this->trans('forum.authorize.subtitle', [
+            'forum' => $forumTitle,
+        ], 'Requesting access to your '.$forumTitle.' account'));
+        $accountCaption = $this->escape($this->trans('forum.authorize.account_caption', [
+            'user' => $rawDisplayName,
+        ], 'Authorize as '.$rawDisplayName));
+        $appInfoTitle = $this->escape($this->trans('forum.authorize.app_info_title', [], 'Application info'));
+        $homepageLabel = $this->escape($this->trans('forum.authorize.homepage_label', [], 'Homepage'));
+        $applicationLabel = $this->escape($this->trans('forum.authorize.application_label', [], 'Application'));
+        $typeLabel = $this->escape($this->trans('forum.authorize.type_label', [], 'Type'));
+        $clientType = $this->escape($this->trans('forum.authorize.client_type', [], 'OAuth2 client'));
+        $permissionsTitle = $this->escape($this->trans('forum.authorize.permissions_title', [], 'This application will be able to'));
         $approve = $this->escape($this->trans('forum.authorize.approve', [], 'Authorize'));
         $deny = $this->escape($this->trans('forum.authorize.deny', [], 'Deny'));
         $action = $this->escape($this->baseUrl().'/oauth2/authorize');
 
         return <<<HTML
-<section class="oc-card">
-  <div class="oc-client">
-    {$logo}
-    <div>
-      <h1>{$clientName}</h1>
+<main class="oc-page">
+  <section class="oc-shell">
+    <div class="oc-hero-icon"><span class="oc-lock"></span></div>
+    <h1 class="oc-title">{$clientName}</h1>
+    <p class="oc-subtitle">{$subtitle}</p>
+
+    <div class="oc-account-card">
+      <div class="oc-avatar">{$accountInitials}</div>
+      <div>
+        <strong>{$displayName}</strong>
+        <span>{$accountCaption}</span>
+      </div>
+    </div>
+
+    <section class="oc-info-card">
+      <h2>{$appInfoTitle}</h2>
+      <div class="oc-app-summary">
+        <div class="oc-app-icon">{$logo}</div>
+        <div>
+          <strong>{$clientName}</strong>
+          <span>{$clientType}</span>
+        </div>
+      </div>
+      <div class="oc-info-row">
+        <span>{$homepageLabel}</span>
+        <div>{$homepage}</div>
+      </div>
+      <div class="oc-info-row">
+        <span>{$applicationLabel}</span>
+        <div>{$clientName}</div>
+      </div>
+      <div class="oc-info-row">
+        <span>{$typeLabel}</span>
+        <div>{$clientType}</div>
+      </div>
       {$description}
-      {$homepage}
-    </div>
-  </div>
-  <p class="oc-muted">{$signedInAs}</p>
-  <ul class="oc-scopes">{$scopeItems}</ul>
-  <form method="post" action="{$action}">
-    {$hiddenInputs}
-    <div class="oc-actions">
+    </section>
+
+    <section class="oc-info-card">
+      <h2>{$permissionsTitle}</h2>
+      <ul class="oc-permissions">{$scopeItems}</ul>
+    </section>
+
+    <form class="oc-action-form" method="post" action="{$action}">
+      {$hiddenInputs}
       <button class="oc-button oc-primary" type="submit" name="decision" value="approve">{$approve}</button>
-      <button class="oc-button" type="submit" name="decision" value="deny">{$deny}</button>
-    </div>
-  </form>
-</section>
+      <button class="oc-button oc-secondary" type="submit" name="decision" value="deny">{$deny}</button>
+    </form>
+  </section>
+</main>
 HTML;
     }
 
@@ -136,12 +186,15 @@ HTML;
         ], 'Return URL: '.$currentUrl));
 
         return <<<HTML
-<section class="oc-card">
-  <h1>{$title}</h1>
-  <p class="oc-muted">{$message}</p>
-  <a class="oc-button oc-primary" href="{$base}">{$openForum}</a>
-  <p class="oc-footnote">{$returnUrl}</p>
-</section>
+<main class="oc-page">
+  <section class="oc-shell oc-shell-simple">
+    <div class="oc-hero-icon"><span class="oc-lock"></span></div>
+    <h1 class="oc-title">{$title}</h1>
+    <p class="oc-subtitle">{$message}</p>
+    <a class="oc-button oc-primary" href="{$base}">{$openForum}</a>
+    <p class="oc-footnote">{$returnUrl}</p>
+  </section>
+</main>
 HTML;
     }
 
@@ -151,10 +204,13 @@ HTML;
         $title = $this->escape($this->trans('forum.error.invalid_request', [], 'Invalid OAuth request'));
 
         return <<<HTML
-<section class="oc-card">
-  <h1>{$title}</h1>
-  <p class="oc-error">{$message}</p>
-</section>
+<main class="oc-page">
+  <section class="oc-shell oc-shell-simple">
+    <div class="oc-hero-icon oc-hero-error"></div>
+    <h1 class="oc-title">{$title}</h1>
+    <p class="oc-error">{$message}</p>
+  </section>
+</main>
 HTML;
     }
 
@@ -167,26 +223,72 @@ HTML;
     {
         return <<<'HTML'
 <style>
-body{margin:0;background:#f5f7fb;color:#1f2937;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-.oc-card{width:min(560px,calc(100vw - 32px));margin:8vh auto;background:#fff;border:1px solid #d8dee8;border-radius:8px;padding:28px;box-shadow:0 10px 35px rgba(15,23,42,.08)}
-.oc-client{display:flex;gap:16px;align-items:center;margin-bottom:18px}
-.oc-client img,.oc-icon{width:56px;height:56px;border-radius:8px;object-fit:cover;background:#2563eb;color:#fff;display:grid;place-items:center;font-weight:700}
-h1{font-size:24px;line-height:1.25;margin:0 0 6px}
-p{margin:0 0 12px}
-a{color:#2563eb}
-.oc-muted{color:#596579}
-.oc-scopes{list-style:none;margin:18px 0;padding:0;border:1px solid #e5e9f0;border-radius:8px;overflow:hidden}
-.oc-scopes li{padding:12px 14px;border-top:1px solid #e5e9f0}
-.oc-scopes li:first-child{border-top:0}
-.oc-scopes strong{display:block}
-.oc-scopes span{color:#596579}
-.oc-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
-.oc-button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 16px;border:1px solid #ccd4df;border-radius:6px;background:#fff;color:#1f2937;text-decoration:none;cursor:pointer;font:inherit}
-.oc-primary{background:#2563eb;border-color:#2563eb;color:#fff}
-.oc-error{color:#b42318}
-.oc-footnote{margin-top:18px;color:#6b7280;font-size:12px;word-break:break-all}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#f7f7f6;color:#171717;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+body:before{content:"";position:fixed;inset:0;z-index:-1;background-image:linear-gradient(#e7e7e3 1px,transparent 1px),linear-gradient(90deg,#e7e7e3 1px,transparent 1px);background-size:28px 28px;opacity:.75}
+a{color:#0284c7;text-decoration:none}
+a:hover{text-decoration:underline}
+.oc-page{min-height:100vh;display:flex;justify-content:center;padding:56px 18px}
+.oc-shell{width:min(520px,100%);display:flex;flex-direction:column;align-items:stretch}
+.oc-shell-simple{text-align:center}
+.oc-hero-icon{width:88px;height:88px;margin:0 auto 18px;border:1px solid #e3e3df;border-radius:18px;background:#eeeeec;display:grid;place-items:center}
+.oc-hero-error:before{content:"";width:34px;height:34px;border-radius:50%;border:4px solid #b42318}
+.oc-lock{position:relative;width:34px;height:28px;border:4px solid #555;border-radius:6px}
+.oc-lock:before{content:"";position:absolute;left:5px;top:-22px;width:16px;height:18px;border:4px solid #555;border-bottom:0;border-radius:14px 14px 0 0}
+.oc-title{margin:0;color:#121212;text-align:center;font-size:30px;line-height:1.15;font-weight:800;letter-spacing:0}
+.oc-subtitle{margin:10px 0 28px;color:#858585;text-align:center;font-size:15px}
+.oc-account-card,.oc-info-card{width:100%;border:1px solid #deded9;border-radius:8px;background:#fff;box-shadow:0 1px 1px rgba(0,0,0,.02)}
+.oc-account-card{display:flex;gap:14px;align-items:center;margin-bottom:22px;padding:18px 20px}
+.oc-avatar{width:38px;height:38px;border-radius:50%;background:#7d9a76;color:#fff;display:grid;place-items:center;font-weight:800;text-transform:uppercase}
+.oc-account-card strong{display:block;color:#272727;font-size:15px}
+.oc-account-card span{display:block;color:#878787;font-size:13px}
+.oc-info-card{margin-bottom:22px;padding:18px 20px}
+.oc-info-card h2{margin:0 0 14px;color:#8a8a8a;font-size:13px;font-weight:700}
+.oc-app-summary{display:flex;gap:12px;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #eeeeeb}
+.oc-app-icon img,.oc-app-fallback{width:42px;height:42px;border-radius:10px;object-fit:cover;background:#2563eb;color:#fff;display:grid;place-items:center;font-weight:800}
+.oc-app-summary strong{display:block;color:#232323}
+.oc-app-summary span{display:block;color:#8a8a8a;font-size:13px}
+.oc-info-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;margin:8px 0;color:#6e6e6e}
+.oc-info-row>span{color:#9a9a9a}
+.oc-info-row div{min-width:0;overflow-wrap:anywhere}
+.oc-description{margin:12px 0 0;color:#6e6e6e}
+.oc-permissions{list-style:none;margin:0;padding:0}
+.oc-permission{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid #eeeeeb}
+.oc-permission:first-child{border-top:0;padding-top:2px}
+.oc-permission-icon{position:relative;width:24px;height:24px;flex:0 0 24px}
+.oc-permission-icon:before{content:"";position:absolute;left:8px;top:3px;width:8px;height:8px;border:2px solid #555;border-radius:50%}
+.oc-permission-icon:after{content:"";position:absolute;left:4px;bottom:2px;width:16px;height:8px;border:2px solid #555;border-radius:8px 8px 3px 3px}
+.oc-permission strong{display:block;color:#333;font-weight:700}
+.oc-permission small{display:block;color:#8a8a8a;font-size:12px}
+.oc-action-form{display:flex;flex-direction:column;gap:10px}
+.oc-button{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;padding:0 18px;border-radius:24px;text-decoration:none;cursor:pointer;font:inherit;font-weight:700}
+.oc-primary{border:1px solid #111;background:#111;color:#fff}
+.oc-secondary{border:1px solid #d4d4d0;background:rgba(255,255,255,.55);color:#333}
+.oc-error{margin:8px 0 0;color:#b42318;text-align:center}
+.oc-footnote{margin:16px 0 0;color:#8a8a8a;font-size:12px;word-break:break-all}
+@media (max-width:560px){.oc-page{padding:32px 14px}.oc-title{font-size:26px}.oc-info-row{grid-template-columns:1fr;gap:2px}.oc-account-card,.oc-info-card{padding:16px}.oc-hero-icon{width:78px;height:78px}}
 </style>
 HTML;
+    }
+
+    private function initials(string $value): string
+    {
+        $parts = preg_split('/\s+/', trim($value)) ?: [];
+        $initials = '';
+
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+
+            $initials .= mb_substr($part, 0, 1);
+
+            if (mb_strlen($initials, 'UTF-8') >= 2) {
+                break;
+            }
+        }
+
+        return mb_strtoupper($initials ?: 'O', 'UTF-8');
     }
 
     private function baseUrl(): string
